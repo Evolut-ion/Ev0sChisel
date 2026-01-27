@@ -43,8 +43,8 @@ public class Ev0sChiselPlugin extends JavaPlugin {
 
     private void registerEvents() {
         BlockStateRegistry blockStateRegistry = this.getBlockStateRegistry();
-        blockStateRegistry.registerBlockState(Chisel.class, "Ev0sChisel", Chisel.CODEC);
-        this.getCodecRegistry(Interaction.CODEC).register("ChiselInteraction", ChiselInteraction.class, ChiselInteraction.CODEC);
+        blockStateRegistry.registerBlockState(Chisel.class, "Ev0sChisel", Chisel.CODEC, Chisel.Data.class, Chisel.Data.CHISELCODEC);
+        this.getCodecRegistry(Interaction.CODEC).register("ChiselInteraction", ChiselInteraction.class,  ChiselInteraction.CODEC );
     }
 
     private void registerCommands() {

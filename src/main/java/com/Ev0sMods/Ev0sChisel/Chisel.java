@@ -17,7 +17,7 @@ public class Chisel extends BlockState {
     public String sourceBlockId;
     public String[] substitutions;
     public Data data;
-    public static final BuilderCodec<Chisel> CODEC = BuilderCodec.builder(Chisel.class, Chisel::new, BlockState.BASE_CODEC).append(new KeyedCodec<>("Source Block", Codec.STRING, true), (i, v) -> i.sourceBlockId = v, i -> i.sourceBlockId).add()
+    public static final BuilderCodec<Chisel> CODEC = BuilderCodec.builder(Chisel.class, Chisel::new, BlockState.BASE_CODEC).append(new KeyedCodec<>("Source", Codec.STRING, true), (i, v) -> i.sourceBlockId = v, i -> i.sourceBlockId).add()
             .append(new KeyedCodec<>("Substitutions", Codec.STRING_ARRAY, true), (i, v) -> i.substitutions = v, i -> i.substitutions).add().build();
 
     public boolean initialize(BlockType blockType) {
@@ -34,12 +34,12 @@ public class Chisel extends BlockState {
 
 
     public static final class Data extends StateData {
-        public static final BuilderCodec<Chisel> CHISELCODEC;
+        public static final BuilderCodec<Chisel.Data> CHISELCODEC;
         public String source;
         public String[] substitutions;
 
         static {
-            CHISELCODEC = BuilderCodec.builder(Chisel.class, Chisel::new, BlockState.BASE_CODEC).append(new KeyedCodec<>("Source Block", Codec.STRING, true), (i, v) -> i.sourceBlockId = v, i -> i.sourceBlockId).add()
+            CHISELCODEC = BuilderCodec.builder(Chisel.Data.class, Chisel.Data::new, StateData.DEFAULT_CODEC).append(new KeyedCodec<>("Source", Codec.STRING, true), (i, v) -> i.source = v, i -> i.source).add()
                     .append(new KeyedCodec<>("Substitutions", Codec.STRING_ARRAY, true), (i, v) -> i.substitutions = v, i -> i.substitutions).add().build();
         }
     }
