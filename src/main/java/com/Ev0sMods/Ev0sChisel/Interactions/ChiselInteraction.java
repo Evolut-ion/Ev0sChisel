@@ -51,53 +51,81 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(contextTargetBlock.x, contextTargetBlock.z));
         assert chunk != null;
 
-        // ── Crouch + interact → cycle through full rotation index ────────
+        BlockState blockState = chunk.getState(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+
+        // ── Crouch + interact ───────────────────────────────────────────
+        //   • On a chisel block → cycle rotation
+        //   • On a non-chisel block → open the chisel table UI
         if (isCrouching(commandBuffer, interactionContext)) {
-            try {
-                BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                if (blockType != null) {
-                    VariantRotation vr = blockType.getVariantRotation();
-                    if (vr != null && vr != VariantRotation.None) {
-                        RotationTuple[] validRotations = vr.getRotations();
-                        if (validRotations != null && validRotations.length > 1) {
-                            int currentIdx = chunk.getRotationIndex(
-                                    contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+            if (blockState instanceof Chisel) {
+                // Rotate chisel block (but do not return; continue to open UI)
+                try {
+                    BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                    if (blockType != null) {
+                        VariantRotation vr = blockType.getVariantRotation();
+                        if (vr != null && vr != VariantRotation.None) {
+                            RotationTuple[] validRotations = vr.getRotations();
+                            if (validRotations != null && validRotations.length > 1) {
+                                int currentIdx = chunk.getRotationIndex(
+                                        contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
 
-                            // Find current position in the valid rotations array
-                            int pos = 0;
-                            for (int i = 0; i < validRotations.length; i++) {
-                                if (validRotations[i].index() == currentIdx) {
-                                    pos = i;
-                                    break;
+                                int pos = 0;
+                                for (int i = 0; i < validRotations.length; i++) {
+                                    if (validRotations[i].index() == currentIdx) {
+                                        pos = i;
+                                        break;
+                                    }
                                 }
+
+                                int nextPos = (pos + 1) % validRotations.length;
+                                RotationTuple next = validRotations[nextPos];
+
+                                int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                                int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                                chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z,
+                                        blockId, blockType, next.index(), filler, 0);
+
+                                String key = (String) blockType.getId();
+                                LOGGER.atInfo().log("[Chisel] Rotated block " + key
+                                        + " idx " + currentIdx + " → " + next.index()
+                                        + " (yaw=" + next.yaw() + " pitch=" + next.pitch() + " roll=" + next.roll() + ")"
+                                        + " [" + (nextPos + 1) + "/" + validRotations.length + "]");
                             }
-
-                            // Advance to the next valid rotation (wrapping around)
-                            int nextPos = (pos + 1) % validRotations.length;
-                            RotationTuple next = validRotations[nextPos];
-
-                            int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                            int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                            chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z,
-                                    blockId, blockType, next.index(), filler, 0);
-
-                            String key = (String) blockType.getId();
-                            LOGGER.atInfo().log("[Chisel] Rotated block " + key
-                                    + " idx " + currentIdx + " → " + next.index()
-                                    + " (yaw=" + next.yaw() + " pitch=" + next.pitch() + " roll=" + next.roll() + ")"
-                                    + " [" + (nextPos + 1) + "/" + validRotations.length + "]");
-                            return;
                         }
                     }
+                } catch (Throwable t) {
+                    LOGGER.atWarning().log("[Chisel] Failed to rotate block: " + t.getMessage());
+                    t.printStackTrace();
                 }
-            } catch (Throwable t) {
-                LOGGER.atWarning().log("[Chisel] Failed to rotate block: " + t.getMessage());
-                t.printStackTrace();
             }
-            return; // crouching but no rotation possible – do nothing
+            // Crouch + right-click always rotates (or does nothing); never opens UI
+            return;
         }
 
-        BlockState blockState = chunk.getState(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+        // ── Get player references (shared by both UI paths) ────────────
+        Ref<EntityStore> playerEnt;
+        Store<EntityStore> store;
+        PlayerRef playerRef;
+        com.hypixel.hytale.server.core.entity.entities.Player player;
+        try {
+            playerEnt = interactionContext.getOwningEntity();
+            store     = playerEnt.getStore();
+            playerRef = store.getComponent(playerEnt, PlayerRef.getComponentType());
+            player    = store.getComponent(playerEnt,
+                    com.hypixel.hytale.server.core.entity.entities.Player.getComponentType());
+            if (playerRef == null || player == null) return;
+        } catch (Throwable t) {
+            LOGGER.atWarning().log("[Chisel] Failed to get player refs: " + t.getMessage());
+            return;
+        }
+
+        Vector3i blockPos = new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+
+        // ── Non-chisel block → open in Table mode ───────────────────────
+        if (!(blockState instanceof Chisel)) {
+            ChiselUIPage.openTable(playerRef, store, world, blockPos, player);
+            return;
+        }
 
         // Get the block's own key for accurate type detection
         BlockType targetBlockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
@@ -173,20 +201,8 @@ public class ChiselInteraction extends SimpleBlockInteraction {
 
             // ── Open UI ─────────────────────────────────────────────────
             if (!empty(subs) || !empty(stairs) || !empty(halfs) || !empty(roofs)) {
-                try {
-                    Ref<EntityStore> playerEnt = interactionContext.getOwningEntity();
-                    Store<EntityStore> store = playerEnt.getStore();
-                    PlayerRef playerRef = store.getComponent(playerEnt, PlayerRef.getComponentType());
-
-                    if (playerRef != null) {
-                        Vector3i blockPos = new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                        ChiselUIPage.open(playerRef, store, blockPos, world,
-                                safe(subs), safe(stairs), safe(halfs), safe(roofs));
-                    }
-                } catch (Throwable t) {
-                    ((HytaleLogger.Api) HytaleLogger.getLogger().atWarning()).log("[Chisel] Failed to open UI: " + t.getMessage());
-                    t.printStackTrace();
-                }
+                ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
+                        safe(subs), safe(stairs), safe(halfs), safe(roofs));
             } else {
                 ((HytaleLogger.Api) HytaleLogger.getLogger().atWarning()).log("[Chisel] No substitutions found on block");
             }

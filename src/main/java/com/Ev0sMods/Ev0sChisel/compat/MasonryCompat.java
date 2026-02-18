@@ -58,7 +58,7 @@ public final class MasonryCompat {
     private static final String[] STONE_TYPES = {
             "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
             "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
-            "Dirt", "Marble", "Sandstone", "Sandstone_Red", "Sandstone_White",
+            "Dirt", "Lime", "Marble", "Sandstone", "Sandstone_Red", "Sandstone_White",
             "Snow", "Stone"
     };
 

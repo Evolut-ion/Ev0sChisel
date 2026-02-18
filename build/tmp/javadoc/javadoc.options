@@ -1,10 +1,10 @@
 -Xdoclint:-missing '-quiet'
 -classpath 'C:\\Users\\tttda\\Desktop\\Ev0sChisel\\build\\classes\\java\\main;C:\\Users\\tttda\\Desktop\\Ev0sChisel\\build\\resources\\main;C:\\Users\\tttda\\AppData\\Roaming\\Hytale\\install\\release\\package\\game\\latest\\Server\\HytaleServer.jar;C:\\Users\\tttda\\.gradle\\caches\\modules-2\\files-2.1\\curse.maven\\hyui-1431415\\7567866\\75d53e92002ca0469eb7c62b497aab3ca827ff59\\hyui-1431415-7567866.jar'
 -d 'C:\\Users\\tttda\\Desktop\\Ev0sChisel\\build\\docs\\javadoc'
--doctitle 'Ev0sChisel 0.1.0 API'
+-doctitle 'Ev0sChisel 0.1.1 API'
 -notimestamp 
 -quiet 
--windowtitle 'Ev0sChisel 0.1.0 API'
+-windowtitle 'Ev0sChisel 0.1.1 API'
 'C:\\Users\\tttda\\Desktop\\Ev0sChisel\\src\\main\\java\\com\\Ev0sMods\\Ev0sChisel\\Chisel.java'
 'C:\\Users\\tttda\\Desktop\\Ev0sChisel\\src\\main\\java\\com\\Ev0sMods\\Ev0sChisel\\ChiselCodec.java'
 'C:\\Users\\tttda\\Desktop\\Ev0sChisel\\src\\main\\java\\com\\Ev0sMods\\Ev0sChisel\\compat\\CarpentryCompat.java'
