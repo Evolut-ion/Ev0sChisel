@@ -7,6 +7,10 @@ package com.Ev0sMods.Ev0sChisel;
 
 import com.Ev0sMods.Ev0sChisel.Chisel.Data;
 import com.Ev0sMods.Ev0sChisel.Interactions.ChiselInteraction;
+import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
+import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
@@ -31,10 +35,16 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin setup!");
         this.registerEvents();
         this.registerCommands();
+        MasonryCompat.init();
+        CarpentryCompat.init();
     }
 
     protected void start() {
         this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin enabled!");
+        MasonryCompat.injectChiselStates();
+        CarpentryCompat.injectChiselStates();
+        StoneworksCompat.init();
+        MacawCompat.init();
     }
 
     public void shutdown() {

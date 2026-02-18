@@ -1,7 +1,7 @@
 {
     "Group": "Ev0sMods",
     "Name": "Ev0'sChisel",
-    "Version": "0.0.1",
+    "Version": "0.1.1",
     "Description": "Ev0s Chisel!",
     "Authors": [
         {
@@ -9,12 +9,13 @@
         }
     ],
     "Website": "example.org",
-    "ServerVersion": "*",
+    "ServerVersion": "2026.02.17-255364b8e",
     "Dependencies": {
         
     },
     "OptionalDependencies": {
-        
+        "Conczin:Ymmersive Masonry": "*",
+        "Conczin:Ymmersive Carpentry": "*"
     },
     "DisabledByDefault": false,
     "Main": "com.Ev0sMods.Ev0sChisel.Ev0sChiselPlugin",
