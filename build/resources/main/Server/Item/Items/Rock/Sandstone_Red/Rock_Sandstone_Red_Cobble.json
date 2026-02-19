@@ -1,0 +1,52 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Rock_Sandstone_Red_Cobble.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Rock_Sandstone_Red_Cobble.png",
+  "Set": "Rock_Sandstone_Red_Cobble",
+  "BlockType": {
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "Textures": [
+      {
+        "Sides": "BlockTextures/Rock_Sandstone_Red_Cobblestone_Side.png",
+        "UpDown": "BlockTextures/Rock_Sandstone_Red_Cobblestone_Top.png",
+        "Weight": 1
+      }
+    ],
+    "ConnectedBlockRuleSet": null,
+    "ParticleColor": "#8e5234",
+    "State": {
+      "Id": "Ev0sChisel",
+      "SourceBlock": "Rock_Sandstone_Red_Cobble",
+      "Substitutions": [
+        "Rock_Sandstone_Red_Brick",
+        "Rock_Sandstone_Red_Cobble",
+        "Rock_Sandstone_Red_Brick_Ornate",
+        "Rock_Sandstone_Red_Brick_Decorative",
+        "Rock_Sandstone_Red_Brick_Smooth",
+        "Rock_Sandstone_Red"
+      ]
+    }
+  },
+  "ResourceTypes": [
+    {
+      "Id": "Rock"
+    },
+    {
+      "Id": "Rock_Sandstone_Red"
+    }
+  ],
+  "Tags": {
+    "Type": [
+      "Rock"
+    ],
+    "Family": [
+      "Sandstone"
+    ]
+  },
+  "Parent": "Rock_Stone_Cobble"
+}

@@ -1,0 +1,67 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Rock_Marble_Brick_Smooth.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Rock_Marble_Brick_Smooth.png",
+  "Set": "Rock_Marble_Brick",
+  "Recipe": {
+    "Input": [
+      {
+        "Quantity": 1,
+        "ResourceTypeId": "Rock_Marble"
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Id": "Builders",
+        "Type": "StructuralCrafting",
+        "Categories": [
+          "Smooth"
+        ]
+      }
+    ],
+    "OutputQuantity": 1,
+    "TimeSeconds": 0
+  },
+  "BlockType": {
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "Textures": [
+      {
+        "Sides": "BlockTextures/Rock_Marble_Brick_Top.png",
+        "UpDown": "BlockTextures/Rock_Marble_Brick_Top.png",
+        "Weight": 1
+      }
+    ],
+    "ParticleColor": "#d5d5c8",
+    "State": {
+      "Id": "Ev0sChisel",
+      "SourceBlock": "Rock_Marble",
+      "Substitutions": [
+        "Rock_Marble_Brick",
+        "Rock_Marble_Brick_Smooth",
+        "Rock_Marble_Brick_Ornate",
+        "Rock_Marble_Brick_Decorative",
+        "Rock_Marble_Cobble",
+        "Rock_Marble"
+      ]
+    }
+  },
+  "Tags": {
+    "Type": [
+      "Rock"
+    ],
+    "Family": [
+      "Marble"
+    ]
+  },
+  "Parent": "Rock_Marble_Brick",
+  "ResourceTypes": [
+    {
+      "Id": "Rock_Marble_Brick"
+    }
+  ]
+}

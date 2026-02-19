@@ -197,6 +197,8 @@ public class ChiselInteraction extends SimpleBlockInteraction {
             }
             if (empty(roofs) && !empty(subs)) {
                 roofs = MasonryCompat.deriveExistingRoofing(subs);
+                if (empty(roofs))
+                    roofs = com.Ev0sMods.Ev0sChisel.compat.VanillaCompat.deriveExistingWoodRoofing(subs);
             }
 
             // ── Open UI ─────────────────────────────────────────────────

@@ -734,8 +734,13 @@ public final class ChiselUIPage {
             stairs = MasonryCompat.deriveExistingVariants(subs, "_Stairs");
         if (empty(halfs) && !empty(subs))
             halfs  = MasonryCompat.deriveExistingVariants(subs, "_Half");
-        if (empty(roofs) && !empty(subs))
-            roofs  = MasonryCompat.deriveExistingRoofing(subs);
+        if (empty(roofs) && !empty(subs)) {
+            roofs = MasonryCompat.deriveExistingRoofing(subs);
+            // For wood blocks the standard derivation misses shingle variants;
+            // merge in the wood-aware derivation as well.
+            if (empty(roofs))
+                roofs = com.Ev0sMods.Ev0sChisel.compat.VanillaCompat.deriveExistingWoodRoofing(subs);
+        }
 
         if (empty(subs) && empty(stairs) && empty(halfs) && empty(roofs))
             return null;

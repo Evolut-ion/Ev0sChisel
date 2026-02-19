@@ -78,10 +78,90 @@ public final class VanillaCompat {
             "Tropicalwood"
     };
 
-    /** Vanilla wood block name suffixes to probe for each wood type. */
+    /**
+     * All vanilla wood block form suffixes to probe for each wood type.
+     * Every entry is tested via {@link BlockType#fromString} at runtime;
+     * non-existent keys are silently skipped, so this list can be broad.
+     */
     private static final String[] VANILLA_WOOD_SUFFIXES = {
-            "", "_Planks", "_Log", "_Stripped_Log", "_Stripped",
-            "_Bark", "_Stripped_Bark"
+            // ── Core forms ───────────────────────────────────────────────
+            "",
+            "_Planks",
+            // ── Log / trunk variants ─────────────────────────────────────
+            "_Log",
+            "_Log_Horizontal",
+            "_Log_Corner",
+            "_Stripped_Log",
+            "_Stripped_Log_Horizontal",
+            "_Stripped_Log_Corner",
+            // ── Bark / outer shell ───────────────────────────────────────
+            "_Bark",
+            "_Stripped_Bark",
+            "_Stripped",
+            // ── Structural / decorative ──────────────────────────────────
+            "_Beam",
+            "_Beam_Horizontal",
+            "_Beam_Corner",
+            "_Post",
+            "_Panel",
+            "_Frame",
+            "_Boards",
+            "_Bundle",
+            "_Pile",
+            "_Lattice",
+            "_Trellis",
+            // ── Leaves / foliage ─────────────────────────────────────────
+            "_Leaves",
+            "_Leaves_Fancy",
+            "_Leaves_Fallen",
+            // ── Functional ───────────────────────────────────────────────
+            "_Door",
+            "_Trapdoor",
+            "_Fence",
+            "_Fence_Gate",
+            "_Gate",
+            "_Pressure_Plate",
+            "_Button",
+            "_Sign",
+            "_Wall_Sign",
+            "_Chest",
+            // ── Slab / stair standalone forms ────────────────────────────
+            // (planks-based stairs/halfs are also derived dynamically from
+            //  "_Planks" key via deriveExistingVariants, but explicit entries
+            //  here catch any that use a different naming scheme)
+            "_Planks_Stairs",
+            "_Planks_Half",
+            "_Decorative",
+            "_Ornate",
+            "_Planks_Slab",
+            "_Log_Stairs",
+            "_Log_Half",
+            "_Log_Slab",
+            "_Wood",
+            // ── Roof / shingle forms ──────────────────────────────────────
+            // Listed explicitly here so they are discovered as primary keys
+            // even when the bare base block ("Wood_<Type>") does not exist.
+            "_Roof",
+            "_Roof_Flat",
+            "_Roof_Hollow",
+            "_Roof_Shallow",
+            "_Roof_Steep",
+            "_Shingle",
+            "_Shingle_Flat",
+            "_Shingle_Hollow",
+            "_Shingle_Shallow",
+            "_Shingle_Steep",
+            "_Railing"
+    };
+
+    /**
+     * Roofing suffixes specific to wood blocks.
+     * Wood uses shingle-style roofing ({@code _Shingle*}) in addition to
+     * the standard stone {@code _Roof*} variants.
+     */
+    private static final String[] WOOD_ROOF_SUFFIXES = {
+            "_Roof", "_Roof_Flat", "_Roof_Hollow", "_Roof_Shallow", "_Roof_Steep",
+            "_Shingle", "_Shingle_Flat", "_Shingle_Hollow", "_Shingle_Shallow", "_Shingle_Steep"
     };
 
     private VanillaCompat() {} // utility class
@@ -151,15 +231,16 @@ public final class VanillaCompat {
             String[] roofing = MasonryCompat.deriveExistingRoofing(
                     naturalKeys.toArray(new String[0]));
 
-            // Inject onto ALL discovered blocks: base forms + stairs + halfs + roofing
-            // so that right-clicking any of them opens the chisel UI.
-            List<String> allTargets = new ArrayList<>(naturalKeys);
-            addAll(allTargets, stairs);
-            addAll(allTargets, halfs);
-            addAll(allTargets, roofing);
+            // substitutions = every known variant so any block can chisel to any other
+            LinkedHashSet<String> allSet = new LinkedHashSet<>(subsSet);
+            addAll(allSet, stairs);
+            addAll(allSet, halfs);
+            addAll(allSet, roofing);
+            String[] allSubs = allSet.toArray(new String[0]);
 
+            // Inject onto the full set of targets
             String source = "Rock_" + rockType;
-            count += injectFamily(allTargets, subs, stairs, halfs, roofing, source);
+            count += injectFamily(new ArrayList<>(allSet), allSubs, stairs, halfs, roofing, source);
         }
         return count;
     }
@@ -183,13 +264,14 @@ public final class VanillaCompat {
             String[] roofing   = MasonryCompat.deriveExistingRoofing(subsArr);
             String   source    = family[0];
 
-            // Inject onto base blocks + all derived forms
-            List<String> allTargets = new ArrayList<>(found);
-            addAll(allTargets, stairs);
-            addAll(allTargets, halfs);
-            addAll(allTargets, roofing);
+            // substitutions = every known variant so any block can chisel to any other
+            LinkedHashSet<String> allSet = new LinkedHashSet<>(found);
+            addAll(allSet, stairs);
+            addAll(allSet, halfs);
+            addAll(allSet, roofing);
+            String[] allSubs = allSet.toArray(new String[0]);
 
-            count += injectFamily(allTargets, subsArr, stairs, halfs, roofing, source);
+            count += injectFamily(new ArrayList<>(allSet), allSubs, stairs, halfs, roofing, source);
         }
         return count;
     }
@@ -198,48 +280,65 @@ public final class VanillaCompat {
     // Wood injection
     // ─────────────────────────────────────────────────────────────────────
 
+    /** Set of roof suffixes for fast membership testing during discovery. */
+    private static final java.util.Set<String> WOOD_ROOF_SUFFIX_SET =
+            new java.util.HashSet<>(java.util.Arrays.asList(WOOD_ROOF_SUFFIXES));
+
     private static int injectWoodFamilies() {
         int count = 0;
         for (String woodType : WOOD_TYPES) {
-            // Discover existing vanilla wood blocks for this type
-            List<String> vanillaKeys = new ArrayList<>();
+            // ── Split discovery: roof blocks go straight into roofKeys,
+            //    everything else into baseKeys.  This prevents deriving
+            //    nonsense like "Wood_Goldenwood_Planks_Roof_Flat".
+            List<String> baseKeys = new ArrayList<>();
+            List<String> roofKeys = new ArrayList<>();
             for (String suffix : VANILLA_WOOD_SUFFIXES) {
                 String candidate = "Wood_" + woodType + suffix;
-                if (exists(candidate)) vanillaKeys.add(candidate);
+                if (!exists(candidate)) continue;
+                if (WOOD_ROOF_SUFFIX_SET.contains(suffix)) {
+                    roofKeys.add(candidate);
+                } else {
+                    baseKeys.add(candidate);
+                }
             }
-            if (vanillaKeys.isEmpty()) continue;
+            if (baseKeys.isEmpty() && roofKeys.isEmpty()) continue;
 
             // Merge carpentry variants if the mod is available
             List<String> carpBlocks = CarpentryCompat.getVariants(woodType);
             List<String> carpStairs = CarpentryCompat.getStairVariants(woodType);
             List<String> carpHalfs  = CarpentryCompat.getHalfVariants(woodType);
 
-            String[] vanillaArr = vanillaKeys.toArray(new String[0]);
+            String[] baseArr = baseKeys.toArray(new String[0]);
 
-            LinkedHashSet<String> subsSet = new LinkedHashSet<>(vanillaKeys);
-            subsSet.addAll(carpBlocks);
-            String[] subs = subsSet.toArray(new String[0]);
-
+            // Stairs / halfs: derived only from base keys (not roof forms)
             LinkedHashSet<String> stairsSet = new LinkedHashSet<>();
-            addAll(stairsSet, MasonryCompat.deriveExistingVariants(vanillaArr, "_Stairs"));
+            addAll(stairsSet, MasonryCompat.deriveExistingVariants(baseArr, "_Stairs"));
             stairsSet.addAll(carpStairs);
             String[] stairs = stairsSet.toArray(new String[0]);
 
             LinkedHashSet<String> halfsSet = new LinkedHashSet<>();
-            addAll(halfsSet, MasonryCompat.deriveExistingVariants(vanillaArr, "_Half"));
+            addAll(halfsSet, MasonryCompat.deriveExistingVariants(baseArr, "_Half"));
             halfsSet.addAll(carpHalfs);
             String[] halfs = halfsSet.toArray(new String[0]);
 
-            String[] roofing = MasonryCompat.deriveExistingRoofing(vanillaArr);
-            String   source  = "Wood_" + woodType;
+            // Roofing: directly discovered roof keys + any _Roof* derivations
+            //          from base keys (catches e.g. Wood_Goldenwood_Roof if
+            //          the bare base block exists but its suffix wasn't listed)
+            LinkedHashSet<String> roofSet = new LinkedHashSet<>(roofKeys);
+            addAll(roofSet, deriveExistingWoodRoofing(baseArr));
+            String[] roofing = roofSet.toArray(new String[0]);
 
-            // Inject onto vanilla blocks + all derived forms
-            List<String> allTargets = new ArrayList<>(vanillaKeys);
-            addAll(allTargets, stairs);
-            addAll(allTargets, halfs);
-            addAll(allTargets, roofing);
+            String source = "Wood_" + woodType;
 
-            count += injectFamily(allTargets, subs, stairs, halfs, roofing, source);
+            // substitutions = every known variant so any block can chisel to any other
+            LinkedHashSet<String> allSet = new LinkedHashSet<>(baseKeys);
+            allSet.addAll(carpBlocks);
+            addAll(allSet, stairs);
+            addAll(allSet, halfs);
+            allSet.addAll(roofKeys);
+            String[] allSubs = allSet.toArray(new String[0]);
+
+            count += injectFamily(new ArrayList<>(allSet), allSubs, stairs, halfs, roofing, source);
         }
         return count;
     }
@@ -251,8 +350,13 @@ public final class VanillaCompat {
     /**
      * Injects {@link Chisel.Data} onto each {@link BlockType} in {@code keys}
      * that does <em>not</em> already carry chisel state data.
+     * <p>
+     * If a block already has {@link Chisel.Data} from a prior compat pass but
+     * its {@code roofing} array is empty, the roofing field is patched in-place
+     * so that earlier passes (e.g. CarpentryCompat) do not silently miss
+     * shingle-style roofing variants that only VanillaCompat knows about.
      *
-     * @return number of blocks that were actually injected
+     * @return number of blocks that were actually injected or patched
      */
     private static int injectFamily(List<String> keys,
                                     String[] substitutions,
@@ -266,9 +370,19 @@ public final class VanillaCompat {
                 BlockType bt = BlockType.fromString(key);
                 if (bt == null) continue;
 
-                // Skip blocks already registered by another compat pass
                 StateData existing = bt.getState();
-                if (existing instanceof Chisel.Data) continue;
+
+                if (existing instanceof Chisel.Data existingData) {
+                    // Block already registered by a prior compat pass.
+                    // Patch roofing in-place if it is currently missing.
+                    boolean roofingMissing = existingData.roofing == null
+                            || existingData.roofing.length == 0;
+                    if (roofingMissing && roofing != null && roofing.length > 0) {
+                        existingData.roofing = roofing;
+                        count++;
+                    }
+                    continue;
+                }
 
                 Chisel.Data data = new Chisel.Data();
                 data.source        = source;
@@ -286,6 +400,23 @@ public final class VanillaCompat {
             }
         }
         return count;
+    }
+
+    /**
+     * Derives wood roofing by probing both standard {@code _Roof*} and
+     * wood-specific {@code _Shingle*} suffixes against each base key.
+     * Public so the UI layer can use it as a fallback derivation.
+     */
+    public static String[] deriveExistingWoodRoofing(String[] bases) {
+        if (bases == null) return new String[0];
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String base : bases) {
+            for (String suffix : WOOD_ROOF_SUFFIXES) {
+                String candidate = base + suffix;
+                if (exists(candidate)) result.add(candidate);
+            }
+        }
+        return result.toArray(new String[0]);
     }
 
     /** Returns {@code true} if a {@link BlockType} with this key exists in the registry. */

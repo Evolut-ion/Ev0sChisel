@@ -1,0 +1,52 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Rock_Marble_Cobble.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Rock_Marble_Cobble.png",
+  "Set": "Rock_Marble_Cobble",
+  "BlockType": {
+    "Gathering": {
+      "Breaking": {
+        "GatherType": "Rocks"
+      }
+    },
+    "Textures": [
+      {
+        "Sides": "BlockTextures/Rock_Marble_Cobble.png",
+        "UpDown": "BlockTextures/Rock_Marble_Cobble_Top.png",
+        "Weight": 1
+      }
+    ],
+    "ConnectedBlockRuleSet": null,
+    "ParticleColor": "#b4b0a1",
+    "State": {
+      "Id": "Ev0sChisel",
+      "SourceBlock": "Rock_Marble",
+      "Substitutions": [
+        "Rock_Marble_Brick",
+        "Rock_Marble_Brick_Smooth",
+        "Rock_Marble_Brick_Ornate",
+        "Rock_Marble_Brick_Decorative",
+        "Rock_Marble_Cobble",
+        "Rock_Marble"
+      ]
+    }
+  },
+  "ResourceTypes": [
+    {
+      "Id": "Rock"
+    },
+    {
+      "Id": "Rock_Marble"
+    }
+  ],
+  "Tags": {
+    "Type": [
+      "Rock"
+    ],
+    "Family": [
+      "Marble"
+    ]
+  },
+  "Parent": "Rock_Stone_Cobble"
+}

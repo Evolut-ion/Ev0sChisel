@@ -104,7 +104,11 @@ public class Ev0sChiselPlugin extends JavaPlugin {
                 // Auto-derive stairs/halfs/roofing from block subs if arrays are empty
                 if (empty(stairs) && !empty(subs)) stairs = MasonryCompat.deriveExistingVariants(subs, "_Stairs");
                 if (empty(halfs) && !empty(subs))  halfs  = MasonryCompat.deriveExistingVariants(subs, "_Half");
-                if (empty(roofs) && !empty(subs))  roofs  = MasonryCompat.deriveExistingRoofing(subs);
+                if (empty(roofs) && !empty(subs)) {
+                    roofs = MasonryCompat.deriveExistingRoofing(subs);
+                    if (empty(roofs))
+                        roofs = VanillaCompat.deriveExistingWoodRoofing(subs);
+                }
 
                 // Merge compat contributions
                 if (MasonryCompat.isAvailable()) {
