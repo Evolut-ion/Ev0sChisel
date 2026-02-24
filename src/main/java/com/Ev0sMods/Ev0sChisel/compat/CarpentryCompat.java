@@ -56,9 +56,9 @@ public final class CarpentryCompat {
 
     // ── Wood types that have carpentry variants ─────────────────────────
     private static final String[] WOOD_TYPES = {
-            "Blackwood", "Darkwood", "Deadwood", "Drywood", "Goldenwood",
-            "Greenwood", "Hardwood", "Lightwood", "Redwood", "Softwood",
-            "Tropicalwood"
+            "Blackwood", "Darkwood", "Deadwood", "Drywood", "Greenwood",
+            "Hardwood", "Lightwood", "Redwood", "Softwood", "Tropicalwood",
+            "Whitewood"
     };
 
     /** Vanilla wood block name suffixes to probe for injection. */

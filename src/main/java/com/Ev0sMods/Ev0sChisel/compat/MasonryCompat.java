@@ -58,8 +58,8 @@ public final class MasonryCompat {
     private static final String[] STONE_TYPES = {
             "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
             "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
-            "Dirt", "Lime", "Marble", "Sandstone", "Sandstone_Red", "Sandstone_White",
-            "Snow", "Stone"
+            "Dirt", "Lime", "Marble", "Quartzite", "Sandstone", "Sandstone_Red", 
+            "Sandstone_White", "Snow", "Stone"
     };
 
     private MasonryCompat() {} // utility class
@@ -253,7 +253,7 @@ public final class MasonryCompat {
      * chiselable blocks at runtime.
      * <p>
      * Must be called <b>after</b> all asset packs have been loaded
-     * (i.e. from {@code start()}, not {@code setup()}).
+     * (i.e. from {@code start()}, not {@code setup()}).</p>
      */
     public static void injectChiselStates() {
         if (!detected) return;
@@ -268,8 +268,28 @@ public final class MasonryCompat {
             List<String> masonryHalfs  = HALF_VARIANTS_BY_TYPE.get(normType);
             if (masonryBlocks == null || masonryBlocks.isEmpty()) continue;
 
+            // Check if the base rock block exists - if not, skip this stone type
+            // This prevents injecting masonry data for stone types that don't exist
+            try {
+                BlockType rockBlock = BlockType.fromString("Rock_" + stoneType);
+                if (rockBlock == null) {
+                    LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no base rock block found");
+                    continue;
+                }
+            } catch (Exception e) {
+                LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no base rock block found");
+                continue;
+            }
+
             // Read existing rock-chisel substitutions for this stone type
             String[] rockSubs = getRockSubstitutions(stoneType);
+
+            // If no rock substitutions found, this stone type doesn't have a super type
+            // Skip masonry injection for types without their super type
+            if (rockSubs == null || rockSubs.length == 0) {
+                LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no super type found");
+                continue;
+            }
 
             // Merge full blocks: rock subs + masonry blocks
             LinkedHashSet<String> mergedBlocks = new LinkedHashSet<>();
@@ -309,6 +329,16 @@ public final class MasonryCompat {
                     if (bt == null) {
                         failed++;
                         continue;
+                    }
+
+                    // Skip if already has Chisel.Data (preserves JsonModCompat data)
+                    StateData existing = bt.getState();
+                    if (existing instanceof Chisel.Data existingData) {
+                        // If it already has a source (not empty), preserve it (likely from JsonModCompat)
+                        if (existingData.source != null && !existingData.source.isEmpty()) {
+                            continue;
+                        }
+                        // If source is empty/null, it might be from another compat system, allow overwrite
                     }
 
                     Chisel.Data data = new Chisel.Data();

@@ -1,7 +1,7 @@
 {
     "Group": "Ev0sMods",
     "Name": "Ev0'sChisel",
-    "Version": "0.1.3",
+    "Version": "0.1.5",
     "Description": "Ev0s Chisel!",
     "Authors": [
         {
@@ -15,7 +15,10 @@
     },
     "OptionalDependencies": {
         "Conczin:Ymmersive Masonry": "*",
-        "Conczin:Ymmersive Carpentry": "*"
+        "Conczin:Ymmersive Carpentry": "*",
+        "SketchMacaw:Macaw's Hy Paths": "*",
+        "SketchMacaw:Macaw's Hy Stairs": "*",
+        "StoneworksExpanded:Stoneworks Expanded": "*"
     },
     "DisabledByDefault": false,
     "Main": "com.Ev0sMods.Ev0sChisel.Ev0sChiselPlugin",

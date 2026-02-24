@@ -8,6 +8,7 @@ package com.Ev0sMods.Ev0sChisel;
 import com.Ev0sMods.Ev0sChisel.Chisel.Data;
 import com.Ev0sMods.Ev0sChisel.Interactions.ChiselInteraction;
 import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.CompatMerger;
 import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
@@ -46,12 +47,18 @@ public class Ev0sChiselPlugin extends JavaPlugin {
 
     protected void start() {
         this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin enabled!");
-        MasonryCompat.injectChiselStates();
-        CarpentryCompat.injectChiselStates();
+        
+        // Initialize all compat systems
+        MasonryCompat.init();
+        CarpentryCompat.init();
         StoneworksCompat.init();
         MacawCompat.init();
+        
+        // Use unified compatibility merger to collect and merge all contributions
+        CompatMerger.mergeAllCompatData();
+        
+        // Inject derived block states (stairs, halfs, roofing) after merging
         injectDerivedBlockStates();
-        VanillaCompat.injectChiselStates();
     }
 
     public void shutdown() {
@@ -83,7 +90,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         String[] rockTypes = {
                 "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
                 "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
-                "Dirt", "Marble", "Sandstone", "Sandstone_Red", "Sandstone_White",
+                "Dirt", "Lime", "Marble", "Sandstone", "Sandstone_Red", "Sandstone_White",
                 "Snow", "Stone"
         };
 

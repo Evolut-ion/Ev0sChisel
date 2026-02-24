@@ -1,0 +1,64 @@
+{
+  "TranslationProperties": {
+    "Name": "server.items.Rock_Marble.name"
+  },
+  "Icon": "Icons/ItemsGenerated/Rock_Marble.png",
+  "Set": "Rock_Marble",
+  "Recipe": {
+    "Input": [
+      {
+        "Quantity": 2,
+        "ResourceTypeId": "Rock_Marble"
+      }
+    ],
+    "BenchRequirement": [
+      {
+        "Id": "Furnace",
+        "Type": "Processing"
+      }
+    ],
+    "OutputQuantity": 1,
+    "TimeSeconds": 0
+  },
+  "BlockType": {
+    "Gathering": {
+      "Breaking": {
+        "ItemId": "Rock_Marble_Cobble",
+        "GatherType": "Rocks"
+      }
+    },
+    "Textures": [
+      {
+        "All": "BlockTextures/Rock_Marble.png",
+        "Weight": 1
+      }
+    ],
+    "ParticleColor": "#bbbbaf",
+    "State": {
+      "Id": "Ev0sChisel",
+      "SourceBlock": "Rock_Marble",
+      "Substitutions": [
+        "Rock_Marble_Brick",
+        "Rock_Marble_Brick_Smooth",
+        "Rock_Marble_Brick_Ornate",
+        "Rock_Marble_Brick_Decorative",
+        "Rock_Marble_Cobble",
+        "Rock_Marble"
+      ]
+    }
+  },
+  "ResourceTypes": [
+    {
+      "Id": "Rock"
+    },
+    {
+      "Id": "Rock_Marble"
+    }
+  ],
+  "Tags": {
+    "Type": [
+      "Rock"
+    ]
+  },
+  "Parent": "Rock_Stone"
+}

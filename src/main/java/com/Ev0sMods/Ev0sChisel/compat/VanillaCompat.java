@@ -19,6 +19,10 @@ import java.util.*;
  * <p>
  * All block keys are probed via {@link BlockType#fromString(String)} at
  * runtime; nothing is injected for keys that do not exist in the asset pack.
+ * <p>
+ * <b>Vanilla-only support:</b> This compat layer works independently of other
+ * mods. When MasonryCompat or CarpentryCompat are not available, VanillaCompat
+ * will discover and inject chisel states for vanilla rock/wood blocks directly.
  */
 public final class VanillaCompat {
 
@@ -26,12 +30,21 @@ public final class VanillaCompat {
 
     // ── Rock families ────────────────────────────────────────────────────
     // These match MasonryCompat.STONE_TYPES so masonry variants are merged in.
+    // Also used as fallback when other mods are not present (vanilla-only).
     private static final String[] ROCK_TYPES = {
             "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
             "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
-            "Dirt", "Marble", "Lime", "Sandstone", "Sandstone_Red", "Sandstone_White",
-            "Snow", "Stone"
+            "Dirt", "Lime", "Marble", "Quartzite", "Sandstone", "Sandstone_Red", 
+            "Sandstone_White", "Snow", "Stone"
     };
+
+    /**
+     * Returns the rock types array for external use.
+     * This allows VanillaCompat to work as a fallback when MasonryCompat is not available.
+     */
+    public static String[] getRockTypes() {
+        return ROCK_TYPES;
+    }
 
     /**
      * Natural (non-masonry-mod) suffixes to probe for each rock type.
@@ -70,13 +83,20 @@ public final class VanillaCompat {
     };
 
     // ── Wood families ────────────────────────────────────────────────────
-    // Matches CarpentryCompat.WOOD_TYPES – this path is used regardless of
-    // whether Ymmersive Carpentry is installed.
+    // 11 canonical wood types from Hytale wiki
     private static final String[] WOOD_TYPES = {
-            "Blackwood", "Darkwood", "Deadwood", "Drywood", "Goldenwood",
-            "Greenwood", "Hardwood", "Lightwood", "Redwood", "Softwood",
-            "Tropicalwood"
+            "Blackwood", "Darkwood", "Deadwood", "Drywood", "Greenwood",
+            "Hardwood", "Lightwood", "Redwood", "Softwood", "Tropicalwood",
+            "Whitewood"
     };
+
+    /**
+     * Returns the wood types array for external use.
+     * This allows VanillaCompat to work as a fallback when CarpentryCompat is not available.
+     */
+    public static String[] getWoodTypes() {
+        return WOOD_TYPES;
+    }
 
     /**
      * All vanilla wood block form suffixes to probe for each wood type.
@@ -98,7 +118,7 @@ public final class VanillaCompat {
             "_Bark",
             "_Stripped_Bark",
             "_Stripped",
-            // ── Structural / decorative ──────────────────────────────────
+            // ── Structural / decorative ───────────────────────────────────
             "_Beam",
             "_Beam_Horizontal",
             "_Beam_Corner",
@@ -200,36 +220,56 @@ public final class VanillaCompat {
                 String candidate = "Rock_" + rockType + suffix;
                 if (exists(candidate)) naturalKeys.add(candidate);
             }
+            
+            // Also check for block keys without "Rock_" prefix (e.g., "Basalt_Brick")
+            // This handles alternative naming conventions in the game
+            List<String> altKeys = new ArrayList<>();
+            for (String suffix : ROCK_NATURAL_SUFFIXES) {
+                // Try the bare type name prefix (e.g., "Basalt_Brick" instead of "Rock_Basalt_Brick")
+                if (!suffix.isEmpty()) {
+                    String candidate = rockType + suffix;
+                    if (exists(candidate)) altKeys.add(candidate);
+                }
+            }
 
             // ── Merge masonry-mod variants if available ───────────────────
-            List<String> masonryBlocks = MasonryCompat.getVariants(rockType);
-            List<String> masonryStairs = MasonryCompat.getStairVariants(rockType);
-            List<String> masonryHalfs  = MasonryCompat.getHalfVariants(rockType);
+            // Only call MasonryCompat methods if MasonryCompat is available
+            List<String> masonryBlocks = MasonryCompat.isAvailable() ? MasonryCompat.getVariants(rockType) : Collections.emptyList();
+            List<String> masonryStairs = MasonryCompat.isAvailable() ? MasonryCompat.getStairVariants(rockType) : Collections.emptyList();
+            List<String> masonryHalfs  = MasonryCompat.isAvailable() ? MasonryCompat.getHalfVariants(rockType) : Collections.emptyList();
 
-            // Full substitution list = natural forms + masonry blocks
+            // Full substitution list = natural forms + alternative forms + masonry blocks
             LinkedHashSet<String> subsSet = new LinkedHashSet<>(naturalKeys);
+            subsSet.addAll(altKeys);
             subsSet.addAll(masonryBlocks);
             String[] subs = subsSet.toArray(new String[0]);
 
-            if (naturalKeys.isEmpty() && masonryBlocks.isEmpty()) continue;
+            if (naturalKeys.isEmpty() && altKeys.isEmpty() && masonryBlocks.isEmpty()) continue;
 
-            // Stairs: derived from natural forms + masonry stairs
+            // Stairs: derived from natural forms + alternative forms + masonry stairs
             LinkedHashSet<String> stairsSet = new LinkedHashSet<>();
-            addAll(stairsSet, MasonryCompat.deriveExistingVariants(
+            addAll(stairsSet, deriveExistingVariants(
                     naturalKeys.toArray(new String[0]), "_Stairs"));
+            addAll(stairsSet, deriveExistingVariants(
+                    altKeys.toArray(new String[0]), "_Stairs"));
             stairsSet.addAll(masonryStairs);
             String[] stairs = stairsSet.toArray(new String[0]);
 
-            // Half-slabs: derived from natural forms + masonry halfs
+            // Half-slabs: derived from natural forms + alternative forms + masonry halfs
             LinkedHashSet<String> halfsSet = new LinkedHashSet<>();
-            addAll(halfsSet, MasonryCompat.deriveExistingVariants(
+            addAll(halfsSet, deriveExistingVariants(
                     naturalKeys.toArray(new String[0]), "_Half"));
+            addAll(halfsSet, deriveExistingVariants(
+                    altKeys.toArray(new String[0]), "_Half"));
             halfsSet.addAll(masonryHalfs);
             String[] halfs = halfsSet.toArray(new String[0]);
 
-            // Roofing: derived from natural forms only (masonry has none)
-            String[] roofing = MasonryCompat.deriveExistingRoofing(
+            // Roofing: derived from natural forms + alternative forms only (masonry has none)
+            String[] roofing = deriveExistingRoofing(
                     naturalKeys.toArray(new String[0]));
+            if (roofing == null || roofing.length == 0) {
+                roofing = deriveExistingRoofing(altKeys.toArray(new String[0]));
+            }
 
             // substitutions = every known variant so any block can chisel to any other
             LinkedHashSet<String> allSet = new LinkedHashSet<>(subsSet);
@@ -259,9 +299,9 @@ public final class VanillaCompat {
             if (found.isEmpty()) continue;
 
             String[] subsArr   = found.toArray(new String[0]);
-            String[] stairs    = MasonryCompat.deriveExistingVariants(subsArr, "_Stairs");
-            String[] halfs     = MasonryCompat.deriveExistingVariants(subsArr, "_Half");
-            String[] roofing   = MasonryCompat.deriveExistingRoofing(subsArr);
+            String[] stairs    = deriveExistingVariants(subsArr, "_Stairs");
+            String[] halfs     = deriveExistingVariants(subsArr, "_Half");
+            String[] roofing   = deriveExistingRoofing(subsArr);
             String   source    = family[0];
 
             // substitutions = every known variant so any block can chisel to any other
@@ -304,20 +344,21 @@ public final class VanillaCompat {
             if (baseKeys.isEmpty() && roofKeys.isEmpty()) continue;
 
             // Merge carpentry variants if the mod is available
-            List<String> carpBlocks = CarpentryCompat.getVariants(woodType);
-            List<String> carpStairs = CarpentryCompat.getStairVariants(woodType);
-            List<String> carpHalfs  = CarpentryCompat.getHalfVariants(woodType);
+            // Only call CarpentryCompat methods if CarpentryCompat is available
+            List<String> carpBlocks = CarpentryCompat.isAvailable() ? CarpentryCompat.getVariants(woodType) : Collections.emptyList();
+            List<String> carpStairs = CarpentryCompat.isAvailable() ? CarpentryCompat.getStairVariants(woodType) : Collections.emptyList();
+            List<String> carpHalfs  = CarpentryCompat.isAvailable() ? CarpentryCompat.getHalfVariants(woodType) : Collections.emptyList();
 
             String[] baseArr = baseKeys.toArray(new String[0]);
 
             // Stairs / halfs: derived only from base keys (not roof forms)
             LinkedHashSet<String> stairsSet = new LinkedHashSet<>();
-            addAll(stairsSet, MasonryCompat.deriveExistingVariants(baseArr, "_Stairs"));
+            addAll(stairsSet, deriveExistingVariants(baseArr, "_Stairs"));
             stairsSet.addAll(carpStairs);
             String[] stairs = stairsSet.toArray(new String[0]);
 
             LinkedHashSet<String> halfsSet = new LinkedHashSet<>();
-            addAll(halfsSet, MasonryCompat.deriveExistingVariants(baseArr, "_Half"));
+            addAll(halfsSet, deriveExistingVariants(baseArr, "_Half"));
             halfsSet.addAll(carpHalfs);
             String[] halfs = halfsSet.toArray(new String[0]);
 
@@ -400,6 +441,38 @@ public final class VanillaCompat {
             }
         }
         return count;
+    }
+
+    /**
+     * Derives variants by checking if base + suffix exists as a BlockType.
+     * This is a local version that doesn't depend on MasonryCompat being available.
+     */
+    private static String[] deriveExistingVariants(String[] bases, String suffix) {
+        if (bases == null) return null;
+        List<String> result = new ArrayList<>();
+        for (String base : bases) {
+            String candidate = base + suffix;
+            if (exists(candidate)) result.add(candidate);
+        }
+        return result.isEmpty() ? null : result.toArray(new String[0]);
+    }
+
+    /**
+     * Derives roofing variants by checking all roof sub-variants
+     * ({@code _Roof}, {@code _Roof_Flat}, etc.) for each base key.
+     * This is a local version that doesn't depend on MasonryCompat being available.
+     */
+    private static String[] deriveExistingRoofing(String[] bases) {
+        if (bases == null) return null;
+        String[] roofSuffixes = {"_Roof", "_Roof_Flat", "_Roof_Hollow", "_Roof_Shallow", "_Roof_Steep"};
+        List<String> result = new ArrayList<>();
+        for (String base : bases) {
+            for (String suffix : roofSuffixes) {
+                String candidate = base + suffix;
+                if (exists(candidate)) result.add(candidate);
+            }
+        }
+        return result.isEmpty() ? null : result.toArray(new String[0]);
     }
 
     /**
