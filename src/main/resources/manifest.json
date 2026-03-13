@@ -1,15 +1,15 @@
 {
     "Group": "Ev0sMods",
-    "Name": "Ev0'sChisel",
-    "Version": "0.1.5",
-    "Description": "Ev0s Chisel!",
+    "Name": "Ev0's Building Tools",
+    "Version": "0.1.6",
+    "Description": "Building Tools for Survival customizations with Mod compatibility!",
     "Authors": [
         {
             "Name": "OfficialEv0"
         }
     ],
     "Website": "example.org",
-    "ServerVersion": "2026.02.18-f3b8fff95",
+    "ServerVersion": "2026.02.19-1a311a592",
     "Dependencies": {
         
     },

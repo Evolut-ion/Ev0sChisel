@@ -13,6 +13,9 @@ import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
 import com.Ev0sMods.Ev0sChisel.compat.VanillaCompat;
+import com.Ev0sMods.Ev0sChisel.compat.NoCubeNeonCompat;
+import com.Ev0sMods.Ev0sChisel.Paintbrush;
+import com.Ev0sMods.Ev0sChisel.Interactions.PaintbrushInteraction;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
@@ -43,6 +46,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         this.registerCommands();
         MasonryCompat.init();
         CarpentryCompat.init();
+        NoCubeNeonCompat.init();
     }
 
     protected void start() {
@@ -53,12 +57,16 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         CarpentryCompat.init();
         StoneworksCompat.init();
         MacawCompat.init();
+        NoCubeNeonCompat.init();
         
         // Use unified compatibility merger to collect and merge all contributions
         CompatMerger.mergeAllCompatData();
         
         // Inject derived block states (stairs, halfs, roofing) after merging
         injectDerivedBlockStates();
+
+        // Inject Paintbrush states onto NoCube Neon blocks if available
+        NoCubeNeonCompat.injectPaintbrushStates();
     }
 
     public void shutdown() {
@@ -68,7 +76,9 @@ public class Ev0sChiselPlugin extends JavaPlugin {
     private void registerEvents() {
         BlockStateRegistry blockStateRegistry = this.getBlockStateRegistry();
         blockStateRegistry.registerBlockState(Chisel.class, "Ev0sChisel", Chisel.CODEC, Chisel.Data.class, Chisel.Data.CHISELCODEC);
+        blockStateRegistry.registerBlockState(Paintbrush.class, "Ev0sPaintbrush", Paintbrush.CODEC, Paintbrush.Data.class, Paintbrush.Data.PAINTBRUSHCODEC);
         this.getCodecRegistry(Interaction.CODEC).register("ChiselInteraction", ChiselInteraction.class,  ChiselInteraction.CODEC );
+        this.getCodecRegistry(Interaction.CODEC).register("PaintbrushInteraction", PaintbrushInteraction.class, PaintbrushInteraction.CODEC );
     }
 
     private void registerCommands() {
