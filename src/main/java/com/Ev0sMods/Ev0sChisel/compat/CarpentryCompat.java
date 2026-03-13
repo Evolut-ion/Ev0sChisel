@@ -342,7 +342,7 @@ public final class CarpentryCompat {
 
             for (String variantKey : allCarpentryKeys) {
                 try {
-                    BlockType bt = BlockType.fromString(variantKey);
+                    BlockType bt = BlockTypeCache.get(variantKey);
                     if (bt == null) { failed++; continue; }
 
                     Chisel.Data data = new Chisel.Data();
@@ -365,7 +365,7 @@ public final class CarpentryCompat {
             // ── Inject onto vanilla wood blocks (trunks, planks, etc.) ──
             for (String vanillaKey : vanillaBlocks) {
                 try {
-                    BlockType bt = BlockType.fromString(vanillaKey);
+                    BlockType bt = BlockTypeCache.get(vanillaKey);
                     if (bt == null) { failed++; continue; }
 
                     // Don't overwrite if the block already has Chisel state
@@ -408,7 +408,7 @@ public final class CarpentryCompat {
         for (String suffix : VANILLA_WOOD_SUFFIXES) {
             String candidate = "Wood_" + woodType + suffix;
             try {
-                if (BlockType.fromString(candidate) != null) {
+                if (BlockTypeCache.exists(candidate)) {
                     found.add(candidate);
                 }
             } catch (Exception ignored) { /* block type doesn't exist */ }
@@ -426,7 +426,7 @@ public final class CarpentryCompat {
      */
     private static String[] getWoodSubstitutions(String woodType) {
         try {
-            BlockType woodBlock = BlockType.fromString("Wood_" + woodType);
+            BlockType woodBlock = BlockTypeCache.get("Wood_" + woodType);
             if (woodBlock == null) return null;
             StateData state = woodBlock.getState();
             if (state instanceof Chisel.Data chiselData) {

@@ -76,7 +76,7 @@ public final class NoCubeNeonCompat {
                     List<String> candidates = generateCandidates(mod.getName(), base);
                     for (String cand : candidates) {
                         try {
-                            boolean exists = BlockType.fromString(cand) != null;
+                            boolean exists = BlockTypeCache.exists(cand);
                             LOGGER.atInfo().log("[Paintbrush] Candidate: " + cand + " -> exists=" + exists);
                             if (exists && !VARIANTS.contains(cand)) {
                                 String lower = cand.toLowerCase(Locale.ROOT);
@@ -103,7 +103,7 @@ public final class NoCubeNeonCompat {
                         List<String> candidates = generateCandidates(mod.getName(), base);
                         for (String cand : candidates) {
                             try {
-                                boolean exists = BlockType.fromString(cand) != null;
+                                boolean exists = BlockTypeCache.exists(cand);
                                 LOGGER.atInfo().log("[Paintbrush] ZIP candidate: " + cand + " -> exists=" + exists + " (entry=" + path + ")");
                                 if (exists && !VARIANTS.contains(cand)) {
                                     String lower = cand.toLowerCase(Locale.ROOT);
@@ -127,9 +127,9 @@ public final class NoCubeNeonCompat {
                 for (int i = 0; i < 32; i++) {
                     String key = prefix + i;
                     try {
-                        if (BlockType.fromString(key) != null && !VARIANTS.contains(key)) {
-                            VARIANTS.add(key);
-                        }
+                                if (BlockTypeCache.exists(key) && !VARIANTS.contains(key)) {
+                                    VARIANTS.add(key);
+                                }
                     } catch (Throwable ignored) { }
                 }
             }
@@ -160,8 +160,8 @@ public final class NoCubeNeonCompat {
         int injected = 0, failed = 0;
         LOGGER.atInfo().log("[Paintbrush] Beginning injection onto discovered variants: " + VARIANTS);
         for (String key : VARIANTS) {
-            try {
-                BlockType bt = BlockType.fromString(key);
+                try {
+                BlockType bt = BlockTypeCache.get(key);
                 if (bt == null) { LOGGER.atWarning().log("[Paintbrush] BlockType not found for key: " + key); failed++; continue; }
 
                 StateData existing = bt.getState();

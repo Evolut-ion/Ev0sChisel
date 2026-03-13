@@ -115,7 +115,6 @@ public final class CompatMerger {
             // Whitewood variants
             {"Amber", "Whitewood"},
             {"Sun", "Whitewood"},
-            {"Gold", "Whitewood"},
             {"Yellow", "Whitewood"},
             {"Honey", "Whitewood"},
             {"Golden", "Whitewood"},
@@ -211,6 +210,7 @@ public final class CompatMerger {
             {"Raven", "Blackwood"},
             {"Onyx", "Blackwood"},
             {"Void", "Blackwood"},
+            {"Goldenwood", "Goldenwood"}
         };
         
         for (String[] alias : woodAliases) {
@@ -397,7 +397,7 @@ public final class CompatMerger {
                 }
 
                 try {
-                    BlockType bt = BlockType.fromString(blockKey);
+                    BlockType bt = BlockTypeCache.get(blockKey);
                     if (bt == null) {
                         failed++;
                         continue;
@@ -420,26 +420,63 @@ public final class CompatMerger {
                 }
             }
 
+            // Also inject onto stairs, half-slabs, and roofing variants so derived blocks are chiselable
             for (String stairKey : stairs) {
-                if (!PROCESSED_BLOCKS.add(stairKey)) {
-                    continue;
-                }
+                if (!PROCESSED_BLOCKS.add(stairKey)) continue;
                 try {
-                    BlockType bt = BlockType.fromString(stairKey);
-                    if (bt == null) failed++;
+                    BlockType bt = BlockTypeCache.get(stairKey);
+                    if (bt == null) { failed++; continue; }
+                    Chisel.Data data = new Chisel.Data();
+                    data.source = source;
+                    data.substitutions = substitutions;
+                    data.stairs = stairs;
+                    data.halfSlabs = halfs;
+                    data.roofing = roofing;
+                    setField(StateData.class, data, "id", "Ev0sChisel");
+                    setField(BlockType.class, bt, "state", data);
+                    injected++;
                 } catch (Exception e) {
+                    LOGGER.atWarning().log("[Chisel] Failed to inject merged data for " + stairKey + ": " + e.getMessage());
                     failed++;
                 }
             }
 
             for (String halfKey : halfs) {
-                if (!PROCESSED_BLOCKS.add(halfKey)) {
-                    continue;
-                }
+                if (!PROCESSED_BLOCKS.add(halfKey)) continue;
                 try {
-                    BlockType bt = BlockType.fromString(halfKey);
-                    if (bt == null) failed++;
+                    BlockType bt = BlockTypeCache.get(halfKey);
+                    if (bt == null) { failed++; continue; }
+                    Chisel.Data data = new Chisel.Data();
+                    data.source = source;
+                    data.substitutions = substitutions;
+                    data.stairs = stairs;
+                    data.halfSlabs = halfs;
+                    data.roofing = roofing;
+                    setField(StateData.class, data, "id", "Ev0sChisel");
+                    setField(BlockType.class, bt, "state", data);
+                    injected++;
                 } catch (Exception e) {
+                    LOGGER.atWarning().log("[Chisel] Failed to inject merged data for " + halfKey + ": " + e.getMessage());
+                    failed++;
+                }
+            }
+
+            for (String roofKey : roofing) {
+                if (!PROCESSED_BLOCKS.add(roofKey)) continue;
+                try {
+                    BlockType bt = BlockTypeCache.get(roofKey);
+                    if (bt == null) { failed++; continue; }
+                    Chisel.Data data = new Chisel.Data();
+                    data.source = source;
+                    data.substitutions = substitutions;
+                    data.stairs = stairs;
+                    data.halfSlabs = halfs;
+                    data.roofing = roofing;
+                    setField(StateData.class, data, "id", "Ev0sChisel");
+                    setField(BlockType.class, bt, "state", data);
+                    injected++;
+                } catch (Exception e) {
+                    LOGGER.atWarning().log("[Chisel] Failed to inject merged data for " + roofKey + ": " + e.getMessage());
                     failed++;
                 }
             }
@@ -619,7 +656,7 @@ public final class CompatMerger {
 
     private static boolean exists(String key) {
         try {
-            return BlockType.fromString(key) != null;
+            return BlockTypeCache.exists(key);
         } catch (Exception e) {
             return false;
         }

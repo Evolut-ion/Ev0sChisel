@@ -35,7 +35,7 @@ public final class VanillaCompat {
             "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
             "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
             "Dirt", "Lime", "Marble", "Quartzite", "Sandstone", "Sandstone_Red", 
-            "Sandstone_White", "Snow", "Stone"
+            "Sandstone_White", "Snow", "Stone", "Gold"
     };
 
     /**
@@ -87,7 +87,7 @@ public final class VanillaCompat {
     private static final String[] WOOD_TYPES = {
             "Blackwood", "Darkwood", "Deadwood", "Drywood", "Greenwood",
             "Hardwood", "Lightwood", "Redwood", "Softwood", "Tropicalwood",
-            "Whitewood"
+            "Whitewood", "Goldenwood"
     };
 
     /**
@@ -408,7 +408,7 @@ public final class VanillaCompat {
         int count = 0;
         for (String key : keys) {
             try {
-                BlockType bt = BlockType.fromString(key);
+                BlockType bt = BlockTypeCache.get(key);
                 if (bt == null) continue;
 
                 StateData existing = bt.getState();
@@ -495,7 +495,7 @@ public final class VanillaCompat {
     /** Returns {@code true} if a {@link BlockType} with this key exists in the registry. */
     private static boolean exists(String key) {
         try {
-            return BlockType.fromString(key) != null;
+            return BlockTypeCache.exists(key);
         } catch (Exception e) {
             return false;
         }

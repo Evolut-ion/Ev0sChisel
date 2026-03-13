@@ -30,6 +30,8 @@ dependencies {
     implementation(files("$hytaleHome/install/$patchline/package/game/latest/Server/HytaleServer.jar"))
     implementation "curse.maven:hyui-1431415:7567866"
     implementation "org.json:json:20230227"
+    // fastutil provides high-performance collections (used to speed up BlockType caching)
+    implementation "it.unimi.dsi:fastutil:8.5.14"
 }
 
 // Create the working directory to run the server if it does not already exist.

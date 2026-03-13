@@ -270,8 +270,8 @@ public final class MasonryCompat {
 
             // Check if the base rock block exists - if not, skip this stone type
             // This prevents injecting masonry data for stone types that don't exist
-            try {
-                BlockType rockBlock = BlockType.fromString("Rock_" + stoneType);
+                try {
+                BlockType rockBlock = BlockTypeCache.get("Rock_" + stoneType);
                 if (rockBlock == null) {
                     LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no base rock block found");
                     continue;
@@ -325,7 +325,7 @@ public final class MasonryCompat {
 
             for (String variantKey : allVariantKeys) {
                 try {
-                    BlockType bt = BlockType.fromString(variantKey);
+                    BlockType bt = BlockTypeCache.get(variantKey);
                     if (bt == null) {
                         failed++;
                         continue;
@@ -370,7 +370,7 @@ public final class MasonryCompat {
      */
     private static String[] getRockSubstitutions(String stoneType) {
         try {
-            BlockType rockBlock = BlockType.fromString("Rock_" + stoneType);
+            BlockType rockBlock = BlockTypeCache.get("Rock_" + stoneType);
             if (rockBlock == null) return null;
             StateData state = rockBlock.getState();
             if (state instanceof Chisel.Data chiselData) {
@@ -408,8 +408,8 @@ public final class MasonryCompat {
         List<String> result = new ArrayList<>();
         for (String sub : substitutions) {
             String candidate = sub + suffix;
-            try {
-                if (BlockType.fromString(candidate) != null) {
+                try {
+                if (BlockTypeCache.exists(candidate)) {
                     result.add(candidate);
                 }
             } catch (Exception ignored) { /* block type doesn't exist */ }
@@ -433,7 +433,7 @@ public final class MasonryCompat {
             for (String suffix : ROOF_SUFFIXES) {
                 String candidate = sub + suffix;
                 try {
-                    if (BlockType.fromString(candidate) != null) {
+                    if (BlockTypeCache.exists(candidate)) {
                         result.add(candidate);
                     }
                 } catch (Exception ignored) { /* block type doesn't exist */ }

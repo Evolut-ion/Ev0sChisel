@@ -140,7 +140,7 @@ public final class MacawCompat {
     public static void init() {
         // ── Detect Paths ────────────────────────────────────────────────
         try {
-            if (BlockType.fromString("Mcw_Paths_Rock_Stone_Brick_Dumble") != null) {
+            if (BlockTypeCache.exists("Mcw_Paths_Rock_Stone_Brick_Dumble")) {
                 pathsDetected = true;
                 buildPathsVariantMaps();
                 LOGGER.atInfo().log("[Chisel] Macaw's Paths detected – loaded variants for "
@@ -153,7 +153,7 @@ public final class MacawCompat {
 
         // ── Detect Stairs ───────────────────────────────────────────────
         try {
-            if (BlockType.fromString("Mcw_Stairs_Stone_Classic_Stairs") != null) {
+            if (BlockTypeCache.exists("Mcw_Stairs_Stone_Classic_Stairs")) {
                 stairsDetected = true;
                 buildStairsVariantMaps();
                 LOGGER.atInfo().log("[Chisel] Macaw's Stairs detected – loaded variants for "
@@ -410,7 +410,7 @@ public final class MacawCompat {
 
             for (String key : targets) {
                 try {
-                    BlockType bt = BlockType.fromString(key);
+                    BlockType bt = BlockTypeCache.get(key);
                     if (bt == null) { failed++; continue; }
 
                     Chisel.Data data = new Chisel.Data();
@@ -453,7 +453,7 @@ public final class MacawCompat {
     /** Reads the Chisel.Data substitutions already defined on Rock_{type}. */
     private static String[] getRockSubstitutions(String stoneType) {
         try {
-            BlockType rockBlock = BlockType.fromString("Rock_" + stoneType);
+            BlockType rockBlock = BlockTypeCache.get("Rock_" + stoneType);
             if (rockBlock == null) return null;
             StateData state = rockBlock.getState();
             if (state instanceof Chisel.Data chiselData) {

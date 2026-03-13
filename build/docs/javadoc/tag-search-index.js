@@ -1,1 +1,1 @@
-tagSearchIndex = [];updateSearchResults();
+tagSearchIndex = [{"l":"Two distinct groups:","h":"class com.Ev0sMods.Ev0sChisel.compat.VanillaClothCompat","k":"16","u":"com/Ev0sMods/Ev0sChisel/compat/VanillaClothCompat.html#two-distinct-groups--heading"}];updateSearchResults();

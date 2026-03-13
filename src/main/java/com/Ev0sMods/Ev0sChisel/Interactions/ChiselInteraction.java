@@ -57,49 +57,55 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         //   • On a chisel block → cycle rotation
         //   • On a non-chisel block → open the chisel table UI
         if (isCrouching(commandBuffer, interactionContext)) {
-            if (blockState instanceof Chisel) {
-                // Rotate chisel block (but do not return; continue to open UI)
-                try {
-                    BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                    if (blockType != null) {
-                        VariantRotation vr = blockType.getVariantRotation();
-                        if (vr != null && vr != VariantRotation.None) {
-                            RotationTuple[] validRotations = vr.getRotations();
-                            if (validRotations != null && validRotations.length > 1) {
-                                int currentIdx = chunk.getRotationIndex(
-                                        contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+            // Only rotate chisel-like blocks: actual Chisel block, blocks with injected Chisel.Data,
+            // or common derived keys (stairs/halfs/roofs).
+            boolean rotated = false;
+            try {
+                BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                String blockKey = blockType != null ? (String) blockType.getId() : null;
 
-                                int pos = 0;
-                                for (int i = 0; i < validRotations.length; i++) {
-                                    if (validRotations[i].index() == currentIdx) {
-                                        pos = i;
-                                        break;
-                                    }
-                                }
-
-                                int nextPos = (pos + 1) % validRotations.length;
-                                RotationTuple next = validRotations[nextPos];
-
-                                int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                                int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                                chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z,
-                                        blockId, blockType, next.index(), filler, 0);
-
-                                String key = (String) blockType.getId();
-                                LOGGER.atInfo().log("[Chisel] Rotated block " + key
-                                        + " idx " + currentIdx + " → " + next.index()
-                                        + " (yaw=" + next.yaw() + " pitch=" + next.pitch() + " roll=" + next.roll() + ")"
-                                        + " [" + (nextPos + 1) + "/" + validRotations.length + "]");
-                            }
+                boolean isChiselLike = blockState instanceof Chisel;
+                if (!isChiselLike && blockType != null) {
+                    if (blockType.getState() instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data) {
+                        isChiselLike = true;
+                    } else if (blockKey != null) {
+                        String lower = blockKey.toLowerCase(java.util.Locale.ROOT);
+                        if (lower.endsWith("_stairs") || lower.endsWith("_stair") || lower.endsWith("_half") || lower.endsWith("_slab") || lower.contains("_roof") || lower.contains("_roofs")) {
+                            isChiselLike = true;
                         }
                     }
-                } catch (Throwable t) {
-                    LOGGER.atWarning().log("[Chisel] Failed to rotate block: " + t.getMessage());
-                    t.printStackTrace();
                 }
+
+                if (!isChiselLike) {
+                    LOGGER.atInfo().log("[Chisel] Crouch-rotate skipped: not a chisel-like block (" + blockKey + ")");
+                } else if (blockType == null) {
+                    LOGGER.atWarning().log("[Chisel] Cannot rotate: blockType is null");
+                } else {
+                    VariantRotation vr = blockType.getVariantRotation();
+                    if (vr == null || vr == VariantRotation.None) {
+                        LOGGER.atInfo().log("[Chisel] Block does not expose VariantRotation: " + blockKey);
+                    } else {
+                        RotationTuple[] validRotations = vr.getRotations();
+                        if (validRotations == null || validRotations.length <= 1) {
+                            LOGGER.atInfo().log("[Chisel] No multiple rotations available for block: " + blockKey);
+                        } else {
+                            int currentIdx = chunk.getRotationIndex(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                            int pos = 0;
+                            for (int i = 0; i < validRotations.length; i++) { if (validRotations[i].index() == currentIdx) { pos = i; break; } }
+                            int nextPos = (pos + 1) % validRotations.length;
+                            RotationTuple next = validRotations[nextPos];
+                            int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                            int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                            chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, blockId, blockType, next.index(), filler, 0);
+                            LOGGER.atInfo().log("[Chisel] Rotated block " + blockKey + " idx " + currentIdx + " → " + next.index());
+                            rotated = true;
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                LOGGER.atWarning().log("[Chisel] Failed to rotate block: " + t.getMessage());
             }
-            // Crouch + right-click always rotates (or does nothing); never opens UI
-            return;
+            if (rotated) return; // only suppress UI when we actually rotated
         }
 
         // ── Get player references (shared by both UI paths) ────────────
@@ -259,12 +265,17 @@ public class ChiselInteraction extends SimpleBlockInteraction {
     private static boolean isCrouching(CommandBuffer<EntityStore> commandBuffer, InteractionContext ctx) {
         try {
             Ref<EntityStore> entityRef = ctx.getOwningEntity();
+            LOGGER.atInfo().log("[Chisel] isCrouching: entityRef=" + (entityRef == null ? "<null>" : "present"));
             if (entityRef == null) return false;
             MovementStatesComponent msc = commandBuffer.getComponent(entityRef, MovementStatesComponent.getComponentType());
+            LOGGER.atInfo().log("[Chisel] isCrouching: movement component=" + (msc == null ? "<null>" : "present"));
             if (msc == null) return false;
             MovementStates ms = msc.getMovementStates();
-            return ms != null && ms.crouching;
+            boolean crouch = ms != null && ms.crouching;
+            LOGGER.atInfo().log("[Chisel] isCrouching: movementStates=" + (ms == null ? "<null>" : "present") + " crouching=" + crouch);
+            return crouch;
         } catch (Throwable t) {
+            LOGGER.atWarning().log("[Chisel] isCrouching failed: " + t.getMessage());
             return false;
         }
     }

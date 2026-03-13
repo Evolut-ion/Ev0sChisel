@@ -67,7 +67,7 @@ public final class StoneworksCompat {
         // Use a distinctive key for detection – "Cobblestones" is unique
         // enough (vanilla uses "Rock_Stone_Cobble", not "Cobblestones")
         try {
-            if (BlockType.fromString("Cobblestones") != null) {
+            if (BlockTypeCache.exists("Cobblestones")) {
                 detected = true;
                 variantList = Collections.unmodifiableList(Arrays.asList(VARIANT_KEYS));
                 LOGGER.atInfo().log("[Chisel] Stoneworks Expanded detected – "
@@ -127,8 +127,8 @@ public final class StoneworksCompat {
 
         for (String key : VARIANT_KEYS) {
             try {
-                BlockType bt = BlockType.fromString(key);
-                if (bt == null) { failed++; continue; }
+            BlockType bt = BlockTypeCache.get(key);
+            if (bt == null) { failed++; continue; }
 
                 Chisel.Data data = new Chisel.Data();
                 data.source        = "Stone";
@@ -158,7 +158,7 @@ public final class StoneworksCompat {
     /** Reads the Chisel.Data substitutions already defined on Rock_Stone. */
     private static String[] getRockStoneSubstitutions() {
         try {
-            BlockType rockStone = BlockType.fromString("Rock_Stone");
+            BlockType rockStone = BlockTypeCache.get("Rock_Stone");
             if (rockStone == null) return null;
             StateData state = rockStone.getState();
             if (state instanceof Chisel.Data chiselData) {

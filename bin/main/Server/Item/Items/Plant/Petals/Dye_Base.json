@@ -50,7 +50,7 @@
         "Type": "Crafting",
         "Id": "Workbench",
         "Categories": [
-          ""
+          "Workbench_Tools"
         ]
       }
     ]

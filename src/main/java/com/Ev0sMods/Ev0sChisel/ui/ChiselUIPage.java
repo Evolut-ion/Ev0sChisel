@@ -680,7 +680,7 @@ public final class ChiselUIPage {
     // ═════════════════════════════════════════════════════════════════
 
     private static ChiselVariants resolveChiselVariants(String blockKey) {
-        BlockType bt = BlockType.fromString(blockKey);
+        BlockType bt = com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.get(blockKey);
         if (bt == null) return null;
         StateData state = bt.getState();
         if (!(state instanceof Chisel.Data chiselData)) return null;

@@ -8,12 +8,14 @@ package com.Ev0sMods.Ev0sChisel;
 import com.Ev0sMods.Ev0sChisel.Chisel.Data;
 import com.Ev0sMods.Ev0sChisel.Interactions.ChiselInteraction;
 import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.CompatInitializer;
 import com.Ev0sMods.Ev0sChisel.compat.CompatMerger;
 import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
 import com.Ev0sMods.Ev0sChisel.compat.VanillaCompat;
 import com.Ev0sMods.Ev0sChisel.compat.NoCubeNeonCompat;
+import com.Ev0sMods.Ev0sChisel.compat.VanillaClothCompat;
 import com.Ev0sMods.Ev0sChisel.Paintbrush;
 import com.Ev0sMods.Ev0sChisel.Interactions.PaintbrushInteraction;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
@@ -52,21 +54,9 @@ public class Ev0sChiselPlugin extends JavaPlugin {
     protected void start() {
         this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin enabled!");
         
-        // Initialize all compat systems
-        MasonryCompat.init();
-        CarpentryCompat.init();
-        StoneworksCompat.init();
-        MacawCompat.init();
-        NoCubeNeonCompat.init();
-        
-        // Use unified compatibility merger to collect and merge all contributions
-        CompatMerger.mergeAllCompatData();
-        
-        // Inject derived block states (stairs, halfs, roofing) after merging
-        injectDerivedBlockStates();
-
-        // Inject Paintbrush states onto NoCube Neon blocks if available
-        NoCubeNeonCompat.injectPaintbrushStates();
+        // Warmup BlockType cache and initialize compat passes in parallel
+        // This preloads likely keys and speeds up the serial probing done previously.
+        CompatInitializer.warmupAndInit(Runtime.getRuntime().availableProcessors());
     }
 
     public void shutdown() {
@@ -106,7 +96,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
 
         for (String rockType : rockTypes) {
             try {
-                BlockType rockBt = BlockType.fromString("Rock_" + rockType);
+                BlockType rockBt = com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.get("Rock_" + rockType);
                 if (rockBt == null) continue;
                 StateData state = rockBt.getState();
                 if (!(state instanceof Chisel.Data parentData)) continue;
@@ -161,7 +151,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         for (String key : targets) {
             if (key == null) continue;
             try {
-                BlockType bt = BlockType.fromString(key);
+                BlockType bt = com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.get(key);
                 if (bt == null) continue;
                 StateData existing = bt.getState();
                 if (existing instanceof Chisel.Data) continue; // already has it
