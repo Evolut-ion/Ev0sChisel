@@ -28,7 +28,7 @@ public final class CompatInitializer {
      * @param threads number of threads to use for preloading and init
      */
     public static void warmupAndInit(int threads) {
-        LOGGER.atInfo().log("[Chisel] CompatInitializer: starting warmup with " + threads + " threads");
+        // removed CompatInitializer start info log
 
         List<String> candidates = new ArrayList<>();
 
@@ -67,12 +67,13 @@ public final class CompatInitializer {
 
         // Preload cache in parallel
         int loaded = BlockTypeCache.preload(candidates, Math.max(1, threads), 30);
-        LOGGER.atInfo().log("[Chisel] CompatInitializer: preload completed, " + loaded + " candidates loaded into cache");
+        // removed preload completed info log
 
         // Run compat init passes in parallel (these are idempotent guards inside)
         ExecutorService ex = Executors.newFixedThreadPool(Math.max(1, threads));
         ex.submit(() -> MasonryCompat.init());
         ex.submit(() -> CarpentryCompat.init());
+        ex.submit(() -> StatuesCompat.init());
         ex.submit(() -> StoneworksCompat.init());
         ex.submit(() -> MacawCompat.init());
         ex.submit(() -> NoCubeNeonCompat.init());
@@ -80,13 +81,22 @@ public final class CompatInitializer {
         ex.shutdown();
         try {
             boolean ok = ex.awaitTermination(60, TimeUnit.SECONDS);
-            if (!ok) LOGGER.atInfo().log("[Chisel] CompatInitializer: compat init timed out after 60s");
+            if (!ok) {
+                // removed compat init timeout info log
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
         // After compat init, merge contributions
         CompatMerger.mergeAllCompatData();
+
+        // Inject statue chisel states (so statues can be chiseled back into their material)
+        try {
+            StatuesCompat.injectChiselStates();
+        } catch (Throwable t) {
+            LOGGER.atWarning().log("[Chisel] Failed to inject statue chisel states: " + t.getMessage());
+        }
 
         // Inject derived block states (same as previously done from plugin)
         try {
@@ -100,6 +110,6 @@ public final class CompatInitializer {
         NoCubeNeonCompat.injectPaintbrushStates();
         VanillaClothCompat.injectPaintbrushStates();
 
-        LOGGER.atInfo().log("[Chisel] CompatInitializer: warmup and init complete");
+        // removed warmup and init complete info log
     }
 }

@@ -91,11 +91,7 @@ public final class VanillaClothCompat {
         total += injectGroup(roofVariants,        "Cloth_Roof");
         total += injectGroup(villageWallVariants, "Wood_Village_Wall");
 
-        LOGGER.atInfo().log("[Paintbrush] VanillaClothCompat: injected Paintbrush.Data onto "
-                + total + " cloth/village-wall block(s) ("
-                + woolVariants.length + " wool, "
-                + roofVariants.length + " roof, "
-                + villageWallVariants.length + " village wall)");
+        // injected Paintbrush.Data summary (info log removed)
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -117,7 +113,7 @@ public final class VanillaClothCompat {
             if (exists(key)) found.add(key);
         }
         if (found.isEmpty()) {
-            LOGGER.atInfo().log("[Paintbrush] VanillaClothCompat: no Wood_Village_Wall_*_Full blocks found");
+            // no village wall blocks found (info log removed)
         }
         return found.toArray(new String[0]);
     }
@@ -129,7 +125,7 @@ public final class VanillaClothCompat {
             if (exists(key)) found.add(key);
         }
         if (found.isEmpty()) {
-            LOGGER.atInfo().log("[Paintbrush] VanillaClothCompat: no Cloth_Block_Wool_* blocks found");
+            // no wool blocks found (info log removed)
         }
         return found.toArray(new String[0]);
     }
@@ -149,7 +145,7 @@ public final class VanillaClothCompat {
             }
         }
         if (found.isEmpty()) {
-            LOGGER.atInfo().log("[Paintbrush] VanillaClothCompat: no Cloth_Roof_* blocks found");
+            // no cloth roof blocks found (info log removed)
         }
         return found.toArray(new String[0]);
     }
@@ -209,8 +205,6 @@ public final class VanillaClothCompat {
 
     private static void setField(Class<?> clazz, Object target,
                                   String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 }

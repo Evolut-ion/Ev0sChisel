@@ -203,8 +203,7 @@ public final class VanillaCompat {
         total += injectRockFamilies();
         total += injectSoilFamilies();
         total += injectWoodFamilies();
-        LOGGER.atInfo().log("[Chisel] VanillaCompat: injected Chisel.Data onto "
-                + total + " vanilla block(s)");
+        // vanilla compat injection summary (info log removed)
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -519,11 +518,9 @@ public final class VanillaCompat {
         }
     }
 
-    /** Reflective field setter – works on private / final fields. */
+    /** Reflective field setter – delegates to ReflectionCache to avoid repeated lookups. */
     private static void setField(Class<?> clazz, Object target,
                                   String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 }

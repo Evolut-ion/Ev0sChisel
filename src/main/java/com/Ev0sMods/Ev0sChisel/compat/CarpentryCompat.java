@@ -80,12 +80,10 @@ public final class CarpentryCompat {
         try {
             Class.forName("net.conczin.YmmersiveCarpentry");
             detected = true;
-            LOGGER.atInfo().log("[Chisel] Ymmersive Carpentry detected – loading wood variants");
             buildVariantMap();
             buildWoodPrefixMap();
         } catch (ClassNotFoundException e) {
             detected = false;
-            LOGGER.atInfo().log("[Chisel] Ymmersive Carpentry not found – carpentry compat disabled");
         }
     }
 
@@ -233,8 +231,7 @@ public final class CarpentryCompat {
             STAIR_VARIANTS_BY_TYPE.put(normType, Collections.unmodifiableList(stairKeys));
             HALF_VARIANTS_BY_TYPE.put(normType, Collections.unmodifiableList(halfKeys));
         }
-        LOGGER.atInfo().log("[Chisel] Loaded carpentry variants for " + VARIANTS_BY_TYPE.size()
-                + " wood types (blocks + stairs + halfs)");
+        // loaded carpentry variants (info log removed)
     }
 
     /**
@@ -256,8 +253,7 @@ public final class CarpentryCompat {
         }
         TYPE_PREFIX_TO_TYPE.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
 
-        LOGGER.atInfo().log("[Chisel] Built wood-prefix map with " + WOOD_PREFIX_TO_TYPE.size()
-                + " entries + " + TYPE_PREFIX_TO_TYPE.size() + " type-prefix entries");
+        // built wood-prefix map (info log removed)
     }
 
     /** Lowercase normalisation so lookups are case-insensitive. */
@@ -390,8 +386,7 @@ public final class CarpentryCompat {
             }
         }
 
-        LOGGER.atInfo().log("[Chisel] Injected Chisel state onto " + injected
-                + " carpentry / wood blocks" + (failed > 0 ? " (" + failed + " failed)" : ""));
+        // injected carpentry chisel state summary (info log removed)
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -414,8 +409,7 @@ public final class CarpentryCompat {
             } catch (Exception ignored) { /* block type doesn't exist */ }
         }
         if (!found.isEmpty()) {
-            LOGGER.atInfo().log("[Chisel] Discovered " + found.size()
-                    + " vanilla wood blocks for " + woodType + ": " + found);
+            // discovered vanilla wood blocks (info log removed)
         }
         return found;
     }
@@ -452,11 +446,9 @@ public final class CarpentryCompat {
         return set.toArray(new String[0]);
     }
 
-    /** Reflective field setter – handles protected / private fields. */
+    /** Reflective field setter – delegates to ReflectionCache to avoid repeated lookups. */
     private static void setField(Class<?> clazz, Object target,
                                  String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 }

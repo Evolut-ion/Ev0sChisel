@@ -13,6 +13,7 @@ import com.Ev0sMods.Ev0sChisel.compat.CompatMerger;
 import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
+import com.Ev0sMods.Ev0sChisel.compat.StatuesCompat;
 import com.Ev0sMods.Ev0sChisel.compat.VanillaCompat;
 import com.Ev0sMods.Ev0sChisel.compat.NoCubeNeonCompat;
 import com.Ev0sMods.Ev0sChisel.compat.VanillaClothCompat;
@@ -49,6 +50,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         MasonryCompat.init();
         CarpentryCompat.init();
         NoCubeNeonCompat.init();
+        StatuesCompat.init();
     }
 
     protected void start() {
@@ -56,6 +58,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         // Serial compat initialization for faster, safer startup
         MasonryCompat.init();
         CarpentryCompat.init();
+        StatuesCompat.init();
         StoneworksCompat.init();
         MacawCompat.init();
         CompatMerger.mergeAllCompatData();
@@ -184,9 +187,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
 
     private static void setField(Class<?> clazz, Object target,
                                  String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        com.Ev0sMods.Ev0sChisel.compat.ReflectionCache.setField(clazz, target, fieldName, value);
     }
 
     private static String[] mergeArr(String[] base, List<String> extra) {

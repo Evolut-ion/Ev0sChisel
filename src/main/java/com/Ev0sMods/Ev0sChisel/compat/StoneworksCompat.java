@@ -70,14 +70,12 @@ public final class StoneworksCompat {
             if (BlockTypeCache.exists("Cobblestones")) {
                 detected = true;
                 variantList = Collections.unmodifiableList(Arrays.asList(VARIANT_KEYS));
-                LOGGER.atInfo().log("[Chisel] Stoneworks Expanded detected – "
-                        + variantList.size() + " Rock_Stone variants loaded");
                 injectChiselStates();
             } else {
-                LOGGER.atInfo().log("[Chisel] Stoneworks Expanded not found – compat disabled");
+                // Stoneworks not found
             }
         } catch (Exception e) {
-            LOGGER.atInfo().log("[Chisel] Stoneworks Expanded not found – compat disabled");
+            // Stoneworks detection failed or not installed (info log removed)
         }
     }
 
@@ -147,8 +145,7 @@ public final class StoneworksCompat {
             }
         }
 
-        LOGGER.atInfo().log("[Chisel] Injected Chisel state onto " + injected
-                + " Stoneworks blocks" + (failed > 0 ? " (" + failed + " failed)" : ""));
+        // injected chisel state summary for Stoneworks (info log removed)
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -170,11 +167,9 @@ public final class StoneworksCompat {
         return null;
     }
 
-    /** Reflective field setter – handles protected / private fields. */
+    /** Reflective field setter – delegates to ReflectionCache to avoid repeated lookups. */
     private static void setField(Class<?> clazz, Object target,
                                  String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 }

@@ -22,7 +22,7 @@ public final class CompatMerger {
     private CompatMerger() {}
 
     public static void mergeAllCompatData() {
-        LOGGER.atInfo().log("[Chisel] Starting unified compatibility merge...");
+        // starting unified compatibility merge (info log removed)
 
         MERGED_DATA_BY_TYPE.clear();
         PROCESSED_BLOCKS.clear();
@@ -30,12 +30,11 @@ public final class CompatMerger {
         collectAllContributions();
         injectMergedData();
 
-        LOGGER.atInfo().log("[Chisel] Unified compatibility merge completed. Processed "
-                + PROCESSED_BLOCKS.size() + " blocks across " + MERGED_DATA_BY_TYPE.size() + " material types");
+        // unified merge completed (info log removed)
     }
 
     private static void collectAllContributions() {
-        LOGGER.atInfo().log("[Chisel] Collecting all compat contributions...");
+        // collecting all compat contributions (info log removed)
         
         String[] rockTypes = VanillaCompat.getRockTypes();
         
@@ -77,7 +76,7 @@ public final class CompatMerger {
         
         linkWoodTypes();
         
-        LOGGER.atInfo().log("[Chisel] Collected contributions for " + MERGED_DATA_BY_TYPE.size() + " material types");
+        // collected contributions summary (info log removed)
     }
 
     private static void linkWoodTypes() {
@@ -387,9 +386,7 @@ public final class CompatMerger {
             String[] roofing = merged.getRoofingArray();
             String source = merged.getSource();
 
-            LOGGER.atInfo().log("[Chisel] Injecting unified data for " + source 
-                    + ": " + substitutions.length + " substitutions, " 
-                    + stairs.length + " stairs, " + halfs.length + " halfs, " + roofing.length + " roofing");
+                // injecting unified data for source (info log removed)
 
             for (String blockKey : substitutions) {
                 if (!PROCESSED_BLOCKS.add(blockKey)) {
@@ -482,8 +479,7 @@ public final class CompatMerger {
             }
         }
 
-        LOGGER.atInfo().log("[Chisel] Merged compatibility injection completed: "
-                + injected + " blocks injected, " + failed + " failed");
+        // merged compatibility injection completed (info log removed)
     }
 
     private static String[] deriveVariants(String[] bases, String suffix) {
@@ -664,9 +660,7 @@ public final class CompatMerger {
 
     private static void setField(Class<?> clazz, Object target,
                                  String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 
     private static class MergedChiselData {

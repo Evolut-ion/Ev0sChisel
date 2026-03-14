@@ -76,12 +76,10 @@ public final class MasonryCompat {
         try {
             Class.forName("net.conczin.YmmersiveMasonry");
             detected = true;
-            LOGGER.atInfo().log("[Chisel] Ymmersive Masonry detected – loading stone variants");
             buildVariantMap();
             buildRockPrefixMap();
         } catch (ClassNotFoundException e) {
             detected = false;
-            LOGGER.atInfo().log("[Chisel] Ymmersive Masonry not found – masonry compat disabled");
         }
     }
 
@@ -208,8 +206,7 @@ public final class MasonryCompat {
             STAIR_VARIANTS_BY_TYPE.put(normType, Collections.unmodifiableList(stairKeys));
             HALF_VARIANTS_BY_TYPE.put(normType, Collections.unmodifiableList(halfKeys));
         }
-        LOGGER.atInfo().log("[Chisel] Loaded masonry variants for " + VARIANTS_BY_TYPE.size()
-                + " stone types (blocks + stairs + halfs)");
+        // loaded masonry variants (info log removed)
     }
 
     /**
@@ -234,8 +231,7 @@ public final class MasonryCompat {
         }
         TYPE_PREFIX_TO_TYPE.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
 
-        LOGGER.atInfo().log("[Chisel] Built rock-prefix map with " + ROCK_PREFIX_TO_TYPE.size()
-                + " entries + " + TYPE_PREFIX_TO_TYPE.size() + " type-prefix entries");
+        // built rock-prefix map (info log removed)
     }
 
     /** Lowercase normalisation so lookups are case-insensitive. */
@@ -271,15 +267,13 @@ public final class MasonryCompat {
             // Check if the base rock block exists - if not, skip this stone type
             // This prevents injecting masonry data for stone types that don't exist
                 try {
-                BlockType rockBlock = BlockTypeCache.get("Rock_" + stoneType);
-                if (rockBlock == null) {
-                    LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no base rock block found");
+                    BlockType rockBlock = BlockTypeCache.get("Rock_" + stoneType);
+                    if (rockBlock == null) {
+                        continue;
+                    }
+                } catch (Exception e) {
                     continue;
                 }
-            } catch (Exception e) {
-                LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no base rock block found");
-                continue;
-            }
 
             // Read existing rock-chisel substitutions for this stone type
             String[] rockSubs = getRockSubstitutions(stoneType);
@@ -287,7 +281,6 @@ public final class MasonryCompat {
             // If no rock substitutions found, this stone type doesn't have a super type
             // Skip masonry injection for types without their super type
             if (rockSubs == null || rockSubs.length == 0) {
-                LOGGER.atInfo().log("[Chisel] Skipping masonry injection for " + stoneType + " - no super type found");
                 continue;
             }
 
@@ -360,8 +353,7 @@ public final class MasonryCompat {
             }
         }
 
-        LOGGER.atInfo().log("[Chisel] Injected Chisel state onto " + injected
-                + " masonry blocks" + (failed > 0 ? " (" + failed + " failed)" : ""));
+        // injected chisel state summary (info log removed)
     }
 
     /**
@@ -388,7 +380,7 @@ public final class MasonryCompat {
                                  String fieldName, Object value) throws Exception {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
-        field.set(target, value);
+            ReflectionCache.setField(clazz, target, fieldName, value);
     }
 
     // ─────────────────────────────────────────────────────────────────────

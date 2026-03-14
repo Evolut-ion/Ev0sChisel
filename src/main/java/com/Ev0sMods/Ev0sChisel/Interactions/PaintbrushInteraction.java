@@ -34,12 +34,12 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
 
     protected void interactWithBlock(@NonNullDecl World world, @NonNullDecl CommandBuffer<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> commandBuffer, @NonNullDecl InteractionType interactionType, @NonNullDecl InteractionContext interactionContext, @NullableDecl ItemStack itemStack, @NonNullDecl Vector3i vector3i, @NonNullDecl CooldownHandler cooldownHandler) {
         if (interactionContext == null) {
-            LOGGER.atInfo().log("[Paintbrush] Ignored interaction: missing context");
+            // ignored interaction: missing context
             return;
         }
         BlockPosition contextTargetBlock = interactionContext.getTargetBlock();
         if (contextTargetBlock == null || (contextTargetBlock.x == 0 && contextTargetBlock.y == 0 && contextTargetBlock.z == 0)) {
-            LOGGER.atInfo().log("[Paintbrush] Ignored interaction at (0,0,0) or null target block");
+            // ignored interaction: null or origin target
             return;
         }
 
@@ -68,7 +68,7 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
                                 int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
                                 int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
                                 chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, blockId, blockType, next.index(), filler, 0);
-                                LOGGER.atInfo().log("[Paintbrush] Rotated block idx " + currentIdx + " → " + next.index());
+                                // rotation applied (info log removed)
                             }
                         }
                     }
@@ -103,14 +103,14 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
 
         if (blockState instanceof Paintbrush pb) {
             String[] variants = pick(pb.colorVariants, pb.data != null ? pb.data.colorVariants : null);
-            LOGGER.atInfo().log("[Paintbrush] Resolved variants for block: " + java.util.Arrays.toString(variants));
+            // resolved variants for paintbrush block (info log removed)
 
             if (variants != null && variants.length > 0) {
                 PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, variants);
             } else {
                 // Attempt to discover variants from user mods folder (best-effort)
                 java.util.List<String> discovered = discoverUserModVariants();
-                LOGGER.atInfo().log("[Paintbrush] Discovered fallback variants: " + discovered);
+                // discovered fallback variants for paintbrush (info log removed)
                 if (discovered != null && !discovered.isEmpty()) {
                     String[] arr = discovered.toArray(new String[0]);
                     PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, arr);

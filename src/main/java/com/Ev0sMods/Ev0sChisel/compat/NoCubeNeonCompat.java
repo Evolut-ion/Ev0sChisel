@@ -28,7 +28,6 @@ public final class NoCubeNeonCompat {
     public static void init() {
         try {
             detected = true;
-            LOGGER.atInfo().log("[Paintbrush] NoCube Neon registry probing for variants");
             buildVariantList();
         } catch (Throwable t) {
             detected = false;
@@ -75,7 +74,7 @@ public final class NoCubeNeonCompat {
                 } catch (Throwable ignored) { }
             }
         }
-        LOGGER.atInfo().log("[Paintbrush] Discovered " + VARIANTS.size() + " NoCube Neon variants: " + VARIANTS);
+        // discovered NoCube Neon variants (info log removed)
     }
 
     /** Generate likely BlockType keys for a given mod and filename. */
@@ -101,7 +100,7 @@ public final class NoCubeNeonCompat {
         if (!detected || VARIANTS.isEmpty()) return;
 
         int injected = 0, failed = 0;
-        LOGGER.atInfo().log("[Paintbrush] Beginning injection onto discovered variants: " + VARIANTS);
+        // beginning injection onto discovered variants (info log removed)
         for (String key : VARIANTS) {
                 try {
                 BlockType bt = BlockTypeCache.get(key);
@@ -109,7 +108,6 @@ public final class NoCubeNeonCompat {
 
                 StateData existing = bt.getState();
                 if (existing instanceof Paintbrush.Data) {
-                    LOGGER.atInfo().log("[Paintbrush] Block already has Paintbrush.Data: " + key);
                     continue; // already has paintbrush data
                 }
 
@@ -119,20 +117,16 @@ public final class NoCubeNeonCompat {
 
                 setField(StateData.class, data, "id", "Ev0sPaintbrush");
                 setField(BlockType.class, bt, "state", data);
-                LOGGER.atInfo().log("[Paintbrush] Injected Paintbrush.Data onto: " + key);
                 injected++;
             } catch (Throwable t) {
                 LOGGER.atWarning().log("[Paintbrush] Failed to inject Paintbrush state for " + key + ": " + t.getMessage());
                 failed++;
             }
         }
-
-        LOGGER.atInfo().log("[Paintbrush] Injected Paintbrush state onto " + injected + " NoCube Neon blocks" + (failed > 0 ? " (" + failed + " failed)" : ""));
+        // injected paintbrush state summary (info log removed)
     }
 
     private static void setField(Class<?> clazz, Object target, String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 }

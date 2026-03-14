@@ -1,7 +1,4 @@
-//
-// Source code recreated from a .class file by IntelliJ IDEA
-// (powered by Fernflower decompiler)
-//
+
 
 package com.Ev0sMods.Ev0sChisel.Interactions;
 
@@ -10,6 +7,7 @@ import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
+import com.Ev0sMods.Ev0sChisel.compat.StatuesCompat;
 import com.Ev0sMods.Ev0sChisel.ui.ChiselUIPage;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -22,6 +20,7 @@ import com.hypixel.hytale.protocol.BlockPosition;
 import com.hypixel.hytale.protocol.InteractionType;
 import com.hypixel.hytale.protocol.MovementStates;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.RotationTuple;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.VariantRotation;
 import com.hypixel.hytale.server.core.entity.InteractionContext;
@@ -44,21 +43,30 @@ public class ChiselInteraction extends SimpleBlockInteraction {
 
     protected void interactWithBlock(@NonNullDecl World world, @NonNullDecl CommandBuffer<EntityStore> commandBuffer, @NonNullDecl InteractionType interactionType, @NonNullDecl InteractionContext interactionContext, @NullableDecl ItemStack itemStack, @NonNullDecl Vector3i vector3i, @NonNullDecl CooldownHandler cooldownHandler) {
         if (interactionContext == null) {
-            LOGGER.atInfo().log("[Chisel] Ignored interaction: missing context");
             return;
         }
         BlockPosition contextTargetBlock = interactionContext.getTargetBlock();
         if (contextTargetBlock == null || (contextTargetBlock.x == 0 && contextTargetBlock.y == 0 && contextTargetBlock.z == 0)) {
-            LOGGER.atInfo().log("[Chisel] Ignored interaction at (0,0,0) or null target block");
             return;
         }
 
-        ((HytaleLogger.Api) HytaleLogger.getLogger().atInfo()).log("[Chisel] interactWithBlock called at " + contextTargetBlock.x + "," + contextTargetBlock.y + "," + contextTargetBlock.z);
+        // removed interaction trace log
 
         WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(contextTargetBlock.x, contextTargetBlock.z));
         if (chunk == null) return;
 
         BlockState blockState = chunk.getState(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+        com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType targetBlockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+
+        // Detect if this is a right-click-like interaction (heuristic)
+        boolean isRightClick = false;
+        try {
+            String it = interactionType != null ? interactionType.toString() : "";
+            if (it != null) {
+                String lit = it.toLowerCase(java.util.Locale.ROOT);
+                if (lit.contains("right") || lit.contains("secondary") || lit.contains("activate")) isRightClick = true;
+            }
+        } catch (Throwable ignored) {}
 
         // ── Crouch + interact ───────────────────────────────────────────
         //   • On a chisel block → cycle rotation
@@ -70,11 +78,29 @@ public class ChiselInteraction extends SimpleBlockInteraction {
             try {
                 BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
                 String blockKey = blockType != null ? (String) blockType.getId() : null;
-
                 boolean isChiselLike = blockState instanceof Chisel;
+                // Use outer isRightClick value (computed above)
+                boolean isStatue = false;
+                try {
+                    String probeKey = blockType != null ? (String) blockType.getId() : null;
+                    if (probeKey != null) {
+                        String lk = probeKey.toLowerCase(java.util.Locale.ROOT);
+                        if (lk.contains("ymmersive_statues") || lk.contains("statue")) isStatue = true;
+                        if (!isStatue && com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.isAvailable()) {
+                            try {
+                                String mapped = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getMappedChiselTypeForStatue(probeKey);
+                                if (mapped != null) isStatue = true;
+                            } catch (Throwable ignored) {}
+                        }
+                    }
+                } catch (Throwable ignored) {}
+
                 if (!isChiselLike && blockType != null) {
-                    if (blockType.getState() instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data) {
-                        isChiselLike = true;
+                    StateData bs = null;
+                    try { bs = blockType.getState(); } catch (Throwable ignored) {}
+                    if (bs instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data) {
+                        // For compat-injected statues require crouch+right-click to rotate
+                        if (isRightClick) isChiselLike = true;
                     } else if (blockKey != null) {
                         String lower = blockKey.toLowerCase(java.util.Locale.ROOT);
                         if (lower.endsWith("_stairs") || lower.endsWith("_stair") || lower.endsWith("_half") || lower.endsWith("_slab") || lower.contains("_roof") || lower.contains("_roofs")) {
@@ -84,28 +110,43 @@ public class ChiselInteraction extends SimpleBlockInteraction {
                 }
 
                 if (!isChiselLike) {
-                    LOGGER.atInfo().log("[Chisel] Crouch-rotate skipped: not a chisel-like block (" + blockKey + ")");
+                    // skipped: not a chisel-like block
                 } else if (blockType == null) {
                     LOGGER.atWarning().log("[Chisel] Cannot rotate: blockType is null");
                 } else {
                     VariantRotation vr = blockType.getVariantRotation();
                     if (vr == null || vr == VariantRotation.None) {
-                        LOGGER.atInfo().log("[Chisel] Block does not expose VariantRotation: " + blockKey);
+                        // block has no VariantRotation
                     } else {
                         RotationTuple[] validRotations = vr.getRotations();
                         if (validRotations == null || validRotations.length <= 1) {
-                            LOGGER.atInfo().log("[Chisel] No multiple rotations available for block: " + blockKey);
+                            // no multiple rotations available
                         } else {
                             int currentIdx = chunk.getRotationIndex(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
                             int pos = 0;
                             for (int i = 0; i < validRotations.length; i++) { if (validRotations[i].index() == currentIdx) { pos = i; break; } }
                             int nextPos = (pos + 1) % validRotations.length;
                             RotationTuple next = validRotations[nextPos];
-                            int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                            int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                            chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, blockId, blockType, next.index(), filler, 0);
-                            LOGGER.atInfo().log("[Chisel] Rotated block " + blockKey + " idx " + currentIdx + " → " + next.index());
-                            rotated = true;
+                            if (isStatue && isRightClick) {
+                                // Rotate both bottom and top of a statue pillar
+                                int bottomId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                                int bottomFiller = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                                int topId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y + 1, contextTargetBlock.z);
+                                int topFiller = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y + 1, contextTargetBlock.z);
+                                try {
+                                    chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, bottomId, blockType, next.index(), bottomFiller, 0);
+                                    chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y + 1, contextTargetBlock.z, topId, blockType, next.index(), topFiller, 0);
+                                    rotated = true;
+                                } catch (Throwable t) {
+                                    // ignore and fall back to single-block rotation
+                                }
+                            } else {
+                                int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                                int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                                chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, blockId, blockType, next.index(), filler, 0);
+                                // rotated block
+                                rotated = true;
+                            }
                         }
                     }
                 }
@@ -135,14 +176,79 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         Vector3i blockPos = new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
 
         // ── Non-chisel block → open in Table mode ───────────────────────
-        if (!(blockState instanceof Chisel)) {
+        // Accept blocks that either have a Chisel BlockState or whose BlockType
+        // was injected with a Chisel.Data state (compat-injected statue types).
+        boolean hasChiselLikeState = (blockState instanceof Chisel);
+        try {
+                if (targetBlockType != null) {
+                String tbId = targetBlockType.getId() != null ? targetBlockType.getId().toString() : "<null>";
+                StateData tstate = null;
+                try { tstate = targetBlockType.getState(); } catch (Throwable t) { /* ignore */ }
+                String stateCls = (tstate != null) ? tstate.getClass().getName() : "<null>";
+                boolean inst = (tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data);
+                // removed target blockType diagnostic log
+                if (!hasChiselLikeState && inst) hasChiselLikeState = true;
+            } else {
+                // targetBlockType is null
+            }
+        } catch (Throwable ignored) {}
+
+        if (!hasChiselLikeState) {
+            // If player right-clicked a statue, open Chisel UI showing mapped material
+            String maybeKey = targetBlockType != null ? (String) targetBlockType.getId() : null;
+            try {
+                if (isRightClick && maybeKey != null && com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.isAvailable()) {
+                    String mapped = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getMappedChiselTypeForStatue(maybeKey);
+                    if (mapped != null) {
+                        ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
+                                new String[]{mapped}, new String[0], new String[0], new String[0]);
+                        return;
+                    }
+                }
+            } catch (Throwable ignored) {}
+
+            // If not handled, attempt runtime injection then fallback to Table UI
+            boolean attemptedRuntimeInject = false;
+            try {
+                if (maybeKey != null) {
+                    String lk = maybeKey.toLowerCase(java.util.Locale.ROOT);
+                    if (lk.contains("ymmersive_statues") || lk.startsWith("ymmersive_statues_")) {
+                        attemptedRuntimeInject = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.ensureInjectedFor(maybeKey);
+                    }
+                }
+            } catch (Throwable ignored) {}
+
+            if (attemptedRuntimeInject) {
+                // re-check state
+                try {
+                    StateData tstate2 = targetBlockType != null ? targetBlockType.getState() : null;
+                    if (tstate2 instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data injectedData) {
+                        ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
+                                safe(injectedData.substitutions), safe(injectedData.stairs), safe(injectedData.halfSlabs), safe(injectedData.roofing));
+                        return;
+                    }
+                } catch (Throwable ignored) {}
+            }
+
             ChiselUIPage.openTable(playerRef, store, world, blockPos, player);
             return;
         }
 
         // Get the block's own key for accurate type detection
-        BlockType targetBlockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+        targetBlockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
         String blockKey = targetBlockType != null ? (String) targetBlockType.getId() : null;
+
+        // If the world's BlockState itself isn't a Chisel instance but the
+        // BlockType was injected with a `Chisel.Data` state (compat-injected
+        // statue BlockTypes), open the Chisel UI using that injected data.
+        try {
+            StateData tstate = targetBlockType != null ? targetBlockType.getState() : null;
+            if (!(blockState instanceof Chisel) && tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data injectedData) {
+                ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
+                        safe(injectedData.substitutions), safe(injectedData.stairs), safe(injectedData.halfSlabs), safe(injectedData.roofing));
+                return;
+            }
+        } catch (Throwable ignored) {}
 
         if (blockState instanceof Chisel chisel) {
             // ── Gather substitution arrays ──────────────────────────────
@@ -272,14 +378,11 @@ public class ChiselInteraction extends SimpleBlockInteraction {
     private static boolean isCrouching(CommandBuffer<EntityStore> commandBuffer, InteractionContext ctx) {
         try {
             Ref<EntityStore> entityRef = ctx.getOwningEntity();
-            LOGGER.atInfo().log("[Chisel] isCrouching: entityRef=" + (entityRef == null ? "<null>" : "present"));
             if (entityRef == null) return false;
             MovementStatesComponent msc = commandBuffer.getComponent(entityRef, MovementStatesComponent.getComponentType());
-            LOGGER.atInfo().log("[Chisel] isCrouching: movement component=" + (msc == null ? "<null>" : "present"));
             if (msc == null) return false;
             MovementStates ms = msc.getMovementStates();
             boolean crouch = ms != null && ms.crouching;
-            LOGGER.atInfo().log("[Chisel] isCrouching: movementStates=" + (ms == null ? "<null>" : "present") + " crouching=" + crouch);
             return crouch;
         } catch (Throwable t) {
             LOGGER.atWarning().log("[Chisel] isCrouching failed: " + t.getMessage());

@@ -143,12 +143,11 @@ public final class MacawCompat {
             if (BlockTypeCache.exists("Mcw_Paths_Rock_Stone_Brick_Dumble")) {
                 pathsDetected = true;
                 buildPathsVariantMaps();
-                LOGGER.atInfo().log("[Chisel] Macaw's Paths detected – loaded variants for "
-                        + PATHS_ROCK_TYPES.length + " rock types");
+                // Macaw Paths detected (info log removed)
             }
         } catch (Exception e) { /* not installed */ }
         if (!pathsDetected) {
-            LOGGER.atInfo().log("[Chisel] Macaw's Paths not found – compat disabled");
+            // Macaw Paths not found
         }
 
         // ── Detect Stairs ───────────────────────────────────────────────
@@ -156,12 +155,11 @@ public final class MacawCompat {
             if (BlockTypeCache.exists("Mcw_Stairs_Stone_Classic_Stairs")) {
                 stairsDetected = true;
                 buildStairsVariantMaps();
-                LOGGER.atInfo().log("[Chisel] Macaw's Stairs detected – loaded variants for "
-                        + STAIRS_STONE_TYPES.length + " stone types");
+                // Macaw Stairs detected (info log removed)
             }
         } catch (Exception e) { /* not installed */ }
         if (!stairsDetected) {
-            LOGGER.atInfo().log("[Chisel] Macaw's Stairs not found – compat disabled");
+            // Macaw Stairs not found
         }
 
         if (pathsDetected || stairsDetected) {
@@ -431,8 +429,7 @@ public final class MacawCompat {
             }
         }
 
-        LOGGER.atInfo().log("[Chisel] Injected Chisel state onto " + injected
-                + " Macaw blocks" + (failed > 0 ? " (" + failed + " failed)" : ""));
+        // injected chisel state summary for Macaw (info log removed)
     }
 
     // =====================================================================
@@ -470,11 +467,9 @@ public final class MacawCompat {
         return s.toLowerCase(Locale.ROOT);
     }
 
-    /** Reflective field setter – handles protected / private fields. */
+    /** Reflective field setter – delegates to ReflectionCache to avoid repeated lookups. */
     private static void setField(Class<?> clazz, Object target,
                                  String fieldName, Object value) throws Exception {
-        Field field = clazz.getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
+        ReflectionCache.setField(clazz, target, fieldName, value);
     }
 }

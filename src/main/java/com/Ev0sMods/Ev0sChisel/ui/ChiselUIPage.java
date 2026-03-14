@@ -38,12 +38,13 @@ import java.util.*;
 public final class ChiselUIPage {
 
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+    private static final java.util.concurrent.ConcurrentHashMap<String, ChiselVariants> CHISEL_VARIANTS_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The two sub-pages the player can switch between. */
     public enum Mode { CHISEL, TABLE }
 
     /** Output tab types inside the UI. */
-    public enum Tab { BLOCKS, STAIRS, HALF_SLABS, ROOFING }
+    public enum Tab { BLOCKS, STAIRS, HALF_SLABS, ROOFING, STATUE }
 
     /* Layout / paging constants */
     private static final int GRID_COLUMNS   = 4;
@@ -100,6 +101,11 @@ public final class ChiselUIPage {
                 || !empty(chiselHalfs) || !empty(chiselRoofs);
 
         // ── Resolve output variant arrays based on mode ─────────────
+            // Cache the chunk once to avoid repeated world lookups in event handlers
+            final WorldChunk cachedChunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
+            // ── Statue detection (two-block pillar of same key/variants) ──
+            String[] statueVariants = resolveStatueVariants(cachedChunk, blockPos);
+            boolean hasStatues = statueVariants != null && statueVariants.length > 0;
         String[] outSubs, outStairs, outHalfs, outRoofs;
         if (mode == Mode.CHISEL) {
             outSubs   = chiselSubs;
@@ -117,6 +123,25 @@ public final class ChiselUIPage {
             }
         }
 
+        // If we detected a two-block statue pillar, prefer showing the
+        // statue's mapped base chisel material in the BLOCKS tab so the
+        // user can convert a statue back into its material blocks.
+        if (hasStatues && (activeTab == Tab.BLOCKS)) {
+            boolean hasAny = (outSubs != null && outSubs.length > 0);
+            if (!hasAny) {
+                java.util.LinkedHashSet<String> mapped = new java.util.LinkedHashSet<>();
+                for (String s : statueVariants) {
+                    try {
+                        String m = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getMappedChiselTypeForStatue(s);
+                        if (m != null && !m.isEmpty()) mapped.add(m);
+                    } catch (Throwable ignored) {}
+                }
+                if (!mapped.isEmpty()) {
+                    outSubs = mapped.toArray(new String[0]);
+                }
+            }
+        }
+
         boolean hasBlocks = len(outSubs) > 0;
         boolean hasStairs = len(outStairs) > 0;
         boolean hasHalfs  = len(outHalfs) > 0;
@@ -127,6 +152,7 @@ public final class ChiselUIPage {
             case STAIRS     -> safe(outStairs);
             case HALF_SLABS -> safe(outHalfs);
             case ROOFING    -> safe(outRoofs);
+            case STATUE     -> safe(statueVariants);
         };
 
         // ── Paginate output grid ────────────────────────────────────
@@ -160,16 +186,16 @@ public final class ChiselUIPage {
 
         if (mode == Mode.CHISEL) {
             html = buildChiselHtml(pgOut, outStart, activeTab,
-                    hasBlocks, iconBlocks, hasStairs, iconStairs,
-                    hasHalfs, iconHalfs, hasRoofs, iconRoofs,
-                    hasChiselData, curOutPg, totalOutPg);
+                hasBlocks, iconBlocks, hasStairs, iconStairs,
+                hasHalfs, iconHalfs, hasRoofs, iconRoofs,
+                hasStatues, first(statueVariants), hasChiselData, curOutPg, totalOutPg);
         } else {
             html = buildTableHtml(pgInv, invStart, pgOut, outStart,
-                    inputKey, inputCount, activeTab,
-                    hasBlocks, iconBlocks, hasStairs, iconStairs,
-                    hasHalfs, iconHalfs, hasRoofs, iconRoofs,
-                    hasChiselData, curOutPg, totalOutPg,
-                    curInvPg, totalInvPg);
+                inputKey, inputCount, activeTab,
+                hasBlocks, iconBlocks, hasStairs, iconStairs,
+                hasHalfs, iconHalfs, hasRoofs, iconRoofs,
+                hasStatues, first(statueVariants), hasChiselData, curOutPg, totalOutPg,
+                curInvPg, totalInvPg);
         }
 
         // ── Create page & register events ───────────────────────────
@@ -225,6 +251,18 @@ public final class ChiselUIPage {
                             chiselSubs, chiselStairs, chiselHalfs, chiselRoofs,
                             inputKey, inputCount, inputSlot, inputSection,
                             mode, Tab.ROOFING, 0, fCurInvPg));
+        if (hasStatues && activeTab != Tab.STATUE) {
+            boolean tabRendered = (mode == Mode.CHISEL)
+                    || (mode == Mode.TABLE && inputKey != null
+                        && (hasBlocks || hasStairs || hasHalfs || hasRoofs || hasStatues));
+            if (tabRendered) {
+                builder.addEventListener("tab_statues", CustomUIEventBindingType.Activating,
+                    (i, c) -> open(playerRef, store, world, blockPos, player,
+                        chiselSubs, chiselStairs, chiselHalfs, chiselRoofs,
+                        inputKey, inputCount, inputSlot, inputSection,
+                        mode, Tab.STATUE, 0, fCurInvPg));
+            }
+        }
 
         // ── Output pagination ───────────────────────────────────────
         if (curOutPg > 0)
@@ -248,20 +286,73 @@ public final class ChiselUIPage {
                 final String btnId = "out_" + (outStart + i);
                 builder.addEventListener(btnId, CustomUIEventBindingType.Activating,
                         (ignored, ctx) -> {
-                    try {
-                        WorldChunk chunk = world.getChunkIfInMemory(
-                                ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
-                        if (chunk != null) {
-                            chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
-                            LOGGER.atInfo().log("[Chisel] Set block at "
-                                    + blockPos + " to " + blockKey);
+                            try {
+                                WorldChunk chunk = cachedChunk;
+                                if (chunk != null) {
+                            // STATUE tab replaces a two-block pillar (bottom+top)
+                            if (activeTab == Tab.STATUE) {
+                                // STATUE tab: place the statue key (user expects statue placement)
+                                try {
+                                    chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
+                                    chunk.setBlock(blockPos.x, blockPos.y + 1, blockPos.z, blockKey);
+                                    LOGGER.atWarning().log("[Chisel] STATUE tab placed statue key: " + blockKey);
+                                } catch (Throwable ex) {
+                                    try {
+                                        chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
+                                        chunk.setBlock(blockPos.x, blockPos.y + 1, blockPos.z, blockKey);
+                                    } catch (Throwable ignoredEx) {}
+                                }
+                            } else {
+                                // BLOCKS tab: if the chosen key is actually a Ymmersive statue,
+                                // map it back to its material (e.g., Rock_Marble) and replace
+                                // the two-block pillar with two stacked material blocks.
+                                try {
+                                    boolean handled = false;
+                                    if (com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.isAvailable()) {
+                                        String mapped = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getMappedChiselTypeForStatue(blockKey);
+                                        if (mapped != null && mapped.toLowerCase(java.util.Locale.ROOT).startsWith("rock_")) {
+                                            // place material blocks on bottom+top and verify
+                                            chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, mapped);
+                                            chunk.setBlock(blockPos.x, blockPos.y + 1, blockPos.z, mapped);
+                                            try {
+                                                com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType bBottom2 = chunk.getBlockType(blockPos.x, blockPos.y, blockPos.z);
+                                                com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType bTop2 = chunk.getBlockType(blockPos.x, blockPos.y + 1, blockPos.z);
+                                                String bottomId2 = bBottom2 != null ? bBottom2.getId().toString() : "<null>";
+                                                String topId2 = bTop2 != null ? bTop2.getId().toString() : "<null>";
+                                                if (!mapped.equals(bottomId2)) chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, mapped);
+                                                if (!mapped.equals(topId2)) chunk.setBlock(blockPos.x, blockPos.y + 1, blockPos.z, mapped);
+                                            } catch (Throwable v) {
+                                                LOGGER.atWarning().log("[Chisel] BLOCKS tab: verification failed: " + v.getMessage());
+                                            }
+                                            handled = true;
+                                            LOGGER.atWarning().log("[Chisel] BLOCKS tab replacement attempted: key=" + blockKey + " mapped=" + mapped);
+                                        }
+                                    }
+                                    if (!handled) {
+                                        if (hasStatues) {
+                                            // Under statue conditions, place a two-block pillar (bottom+top)
+                                            chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
+                                            chunk.setBlock(blockPos.x, blockPos.y + 1, blockPos.z, blockKey);
+                                            LOGGER.atWarning().log("[Chisel] BLOCKS tab placed pillar fallback: " + blockKey);
+                                        } else {
+                                            chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
+                                            LOGGER.atWarning().log("[Chisel] BLOCKS tab placed key fallback: " + blockKey);
+                                        }
+                                    }
+                                } catch (Throwable ex) {
+                                    try { chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey); } catch (Throwable ignoredEx) {}
+                                }
+                            }
+                            }
+                                // removed info log for setBlock action
                         }
-                    } catch (Throwable t) {
+                     catch (Throwable t) {
                         LOGGER.atWarning().log("[Chisel] Failed to set block: "
                                 + t.getMessage());
-                    }
-                });
+                     }}
+                );
             }
+            
         } else {
             // ── Inventory item clicks → select as input ─────────────
             for (int i = 0; i < pgInv.size(); i++) {
@@ -335,11 +426,7 @@ public final class ChiselUIPage {
         }
 
         builder.open(store);
-        LOGGER.atInfo().log("[Chisel] mode=" + mode + " tab=" + activeTab
-                + " outPg=" + (curOutPg + 1) + "/" + totalOutPg
-                + (mode == Mode.TABLE
-                    ? " invPg=" + (curInvPg + 1) + "/" + totalInvPg
-                    : ""));
+        // removed mode open info log
     }
 
     /** Opens in Chisel mode (in-world block replacement). */
@@ -382,6 +469,7 @@ public final class ChiselUIPage {
                                           boolean hasStairs, String iconStairs,
                                           boolean hasHalfs,  String iconHalfs,
                                           boolean hasRoofs,  String iconRoofs,
+                                          boolean hasStatues, String iconStatues,
                                           boolean hasChiselData,
                                           int curOutPg, int totalOutPg) {
         StringBuilder sb = new StringBuilder();
@@ -393,7 +481,7 @@ public final class ChiselUIPage {
         sb.append("<p class=\"info-label\">Select a variant to chisel this block into.</p>\n");
 
         sb.append(buildTabRow(hasBlocks, iconBlocks, hasStairs, iconStairs,
-                hasHalfs, iconHalfs, hasRoofs, iconRoofs, activeTab));
+            hasHalfs, iconHalfs, hasRoofs, iconRoofs, hasStatues, iconStatues, activeTab));
         sb.append("<div class=\"separator\"></div>\n");
 
         sb.append("<div class=\"btn-grid\">\n");
@@ -424,6 +512,7 @@ public final class ChiselUIPage {
                                          boolean hasStairs, String iconStairs,
                                          boolean hasHalfs,  String iconHalfs,
                                          boolean hasRoofs,  String iconRoofs,
+                                         boolean hasStatues, String iconStatues,
                                          boolean hasChiselData,
                                          int curOutPg, int totalOutPg,
                                          int curInvPg, int totalInvPg) {
@@ -458,9 +547,9 @@ public final class ChiselUIPage {
         sb.append("    </div>\n");
         sb.append("    <div class=\"separator\"></div>\n");
 
-        if (inputKey != null && (hasBlocks || hasStairs || hasHalfs || hasRoofs))
+        if (inputKey != null && (hasBlocks || hasStairs || hasHalfs || hasRoofs || hasStatues))
             sb.append(buildTabRow(hasBlocks, iconBlocks, hasStairs, iconStairs,
-                    hasHalfs, iconHalfs, hasRoofs, iconRoofs, activeTab));
+                hasHalfs, iconHalfs, hasRoofs, iconRoofs, hasStatues, iconStatues, activeTab));
 
         sb.append("    <div class=\"btn-grid\">\n");
         if (pageOut.length > 0) {
@@ -535,6 +624,7 @@ public final class ChiselUIPage {
                                       boolean hasStairs, String iconStairs,
                                       boolean hasHalfs,  String iconHalfs,
                                       boolean hasRoofs,  String iconRoofs,
+                                      boolean hasStatues, String iconStatues,
                                       Tab activeTab) {
         StringBuilder sb = new StringBuilder();
         sb.append("<div class=\"tab-row\">\n");
@@ -542,6 +632,7 @@ public final class ChiselUIPage {
         if (hasStairs) appendIconTab(sb, "tab_stairs",    iconStairs, "Stairs",     activeTab == Tab.STAIRS);
         if (hasHalfs)  appendIconTab(sb, "tab_halfslabs", iconHalfs,  "Half Slabs", activeTab == Tab.HALF_SLABS);
         if (hasRoofs)  appendIconTab(sb, "tab_roofing",   iconRoofs,  "Roofing",    activeTab == Tab.ROOFING);
+        if (hasStatues) appendIconTab(sb, "tab_statues", iconStatues, "Statues", activeTab == Tab.STATUE);
         sb.append("</div>\n");
         return sb.toString();
     }
@@ -613,10 +704,9 @@ public final class ChiselUIPage {
                 LOGGER.atWarning().log("[Chisel] Player inventory is null");
                 return items;
             }
-            collectBlockItems(items, inv.getHotbar(), 0);
-            collectBlockItems(items, inv.getStorage(), 1);
-            LOGGER.atInfo().log("[Chisel] Read " + items.size()
-                    + " block items from inventory");
+                collectBlockItems(items, inv.getHotbar(), 0);
+                collectBlockItems(items, inv.getStorage(), 1);
+                // removed info log for inventory read
         } catch (Throwable t) {
             LOGGER.atWarning().log("[Chisel] Error reading inventory: "
                     + t.getMessage());
@@ -665,10 +755,8 @@ public final class ChiselUIPage {
                 inv.getCombinedHotbarFirst().addItemStack(
                         new ItemStack(outputKey, convertCount));
             }
-            inv.markChanged();
-            LOGGER.atInfo().log("[Chisel] Converted " + convertCount + "x "
-                    + inputKey + " → " + outputKey
-                    + " (remaining=" + remaining + ")");
+                inv.markChanged();
+                // removed conversion info log
         } catch (Throwable t) {
             LOGGER.atWarning().log("[Chisel] Conversion failed: "
                     + t.getMessage());
@@ -680,6 +768,10 @@ public final class ChiselUIPage {
     // ═════════════════════════════════════════════════════════════════
 
     private static ChiselVariants resolveChiselVariants(String blockKey) {
+        if (blockKey == null) return null;
+        ChiselVariants cached = CHISEL_VARIANTS_CACHE.get(blockKey);
+        if (cached != null) return cached;
+
         BlockType bt = com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.get(blockKey);
         if (bt == null) return null;
         StateData state = bt.getState();
@@ -745,8 +837,139 @@ public final class ChiselUIPage {
         if (empty(subs) && empty(stairs) && empty(halfs) && empty(roofs))
             return null;
 
-        return new ChiselVariants(safe(subs), safe(stairs),
+        ChiselVariants result = new ChiselVariants(safe(subs), safe(stairs),
                 safe(halfs), safe(roofs));
+        CHISEL_VARIANTS_CACHE.put(blockKey, result);
+        return result;
+    }
+
+    // ── Statue detection (two-block pillar) ───────────────────────
+    private static String[] resolveStatueVariants(World world, Vector3i blockPos) {
+        try {
+            WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
+            return resolveStatueVariants(chunk, blockPos);
+        } catch (Throwable t) {
+            return new String[0];
+        }
+    }
+
+    // Chunk-based resolver avoids repeated world lookups; prefer calling this
+    private static String[] resolveStatueVariants(WorldChunk chunk, Vector3i blockPos) {
+        try {
+            if (chunk == null) return new String[0];
+            com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType bottom = chunk.getBlockType(blockPos.x, blockPos.y, blockPos.z);
+            com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType top = chunk.getBlockType(blockPos.x, blockPos.y + 1, blockPos.z);
+            if (bottom == null || top == null) return new String[0];
+            String bottomKey = (String) bottom.getId();
+            String topKey = (String) top.getId();
+            if (bottomKey == null || topKey == null) return new String[0];
+            if (!sameVariant(bottomKey, topKey)) return new String[0];
+
+            // Candidate keys to test (base + chisel substitutions)
+            java.util.Set<String> candidates = new java.util.LinkedHashSet<>();
+            candidates.add(bottomKey);
+            ChiselVariants cv = resolveChiselVariants(bottomKey);
+            if (cv != null && cv.subs != null) java.util.Collections.addAll(candidates, cv.subs);
+
+            // Material -> furniture mapping (from user's spec)
+            java.util.Map<String, String[]> mat = new java.util.LinkedHashMap<>();
+            mat.put("rock_stone", new String[]{"Furniture_Ancient_Statue", "Furniture_Human_Ruins_Statue_Broken"});
+            mat.put("any_wood", new String[]{"Furniture_Kweebec_Statue", "Furniture_Temple_Emerald_Statue"});
+            mat.put("rock_shale", new String[]{"Furniture_Temple_Dark_Statue_Gaia", "Furniture_Temple_Dark_Statue"});
+            mat.put("rock_chalk", new String[]{"Furniture_Temple_Light_Statue"});
+            mat.put("rock_gold", new String[]{"Furniture_Temple_Scarak_Statue"});
+            mat.put("white_sandstone", new String[]{"Furniture_Temple_Wind_Statue_Gaia", "Furniture_Temple_Wind_Statue"});
+
+            java.util.List<String> results = new java.util.ArrayList<>();
+            for (String candidate : candidates) {
+                String lower = candidate.toLowerCase(java.util.Locale.ROOT);
+                for (java.util.Map.Entry<String, String[]> e : mat.entrySet()) {
+                    String key = e.getKey();
+                    boolean match = false;
+                    if ("any_wood".equals(key)) {
+                        if (lower.startsWith("wood_")) match = true;
+                    } else if ("white_sandstone".equals(key)) {
+                        if (lower.contains("sandstone") && lower.contains("white")) match = true;
+                    } else if (key.startsWith("rock_")) {
+                        String rockType = key.substring("rock_".length());
+                        if (lower.contains(rockType)) match = true;
+                    }
+                    if (match) {
+                        for (String f : e.getValue()) if (!results.contains(f)) results.add(f);
+                    }
+                }
+            }
+
+            // Append Ymmersive Statues candidates via compat helper
+            if (com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.isAvailable()) {
+                // Determine the desired chisel type for this pillar (e.g., Rock_Marble, any_wood)
+                String desiredChiselType = null;
+                try {
+                    ChiselVariants baseCv = resolveChiselVariants(bottomKey);
+                    String[] baseSubs = (baseCv != null) ? baseCv.subs : null;
+                    String detectedRockType = null;
+                    if (MasonryCompat.isAvailable()) detectedRockType = MasonryCompat.detectStoneType(bottomKey, baseSubs);
+                    if (detectedRockType == null) detectedRockType = MacawCompat.detectRockType(bottomKey, baseSubs);
+                    if (detectedRockType != null) {
+                        desiredChiselType = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.mapBlockMaterialToChisel(detectedRockType);
+                    } else if (CarpentryCompat.isAvailable()) {
+                        String woodType = CarpentryCompat.detectWoodType(bottomKey, baseSubs);
+                        if (woodType != null) desiredChiselType = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.mapBlockMaterialToChisel("wood");
+                    } else if (bottomKey.toLowerCase(java.util.Locale.ROOT).contains("mossy")) {
+                        desiredChiselType = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.mapBlockMaterialToChisel("mossy");
+                    }
+
+                    java.util.List<String> filtered = new java.util.ArrayList<>();
+                    for (String candidate : candidates) {
+                        ChiselVariants cv2 = resolveChiselVariants(candidate);
+                        String[] subsArr = (cv2 != null) ? cv2.subs : null;
+                        java.util.List<String> s = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getCandidatesFor(candidate, subsArr);
+                        for (String k : s) {
+                            String mapped = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getMappedChiselTypeForStatue(k);
+                            if (desiredChiselType == null) {
+                                if (!results.contains(k)) results.add(k);
+                            } else {
+                                if (mapped != null && mapped.equalsIgnoreCase(desiredChiselType)) {
+                                    if (!filtered.contains(k)) filtered.add(k);
+                                }
+                            }
+                        }
+                    }
+                    if (desiredChiselType != null) {
+                        for (String k : filtered) if (!results.contains(k)) results.add(k);
+                    }
+                } catch (Throwable t) {
+                    // On any failure, fall back to the old behavior (add all candidates)
+                    for (String candidate : candidates) {
+                        ChiselVariants cv2 = resolveChiselVariants(candidate);
+                        String[] subsArr = (cv2 != null) ? cv2.subs : null;
+                        java.util.List<String> s = com.Ev0sMods.Ev0sChisel.compat.StatuesCompat.getCandidatesFor(candidate, subsArr);
+                        for (String k : s) if (!results.contains(k)) results.add(k);
+                    }
+                }
+            }
+
+            // Debug: log statue candidate resolution for troubleshooting material/state issues
+            // removed statue candidate resolution info log
+
+            return results.toArray(new String[0]);
+        } catch (Throwable t) {
+            return new String[0];
+        }
+    }
+
+    private static boolean sameVariant(String a, String b) {
+        if (a == null || b == null) return false;
+        if (a.equals(b)) return true;
+        ChiselVariants va = resolveChiselVariants(a);
+        if (va != null && va.subs != null) {
+            for (String s : va.subs) if (b.equals(s)) return true;
+        }
+        ChiselVariants vb = resolveChiselVariants(b);
+        if (vb != null && vb.subs != null) {
+            for (String s : vb.subs) if (a.equals(s)) return true;
+        }
+        return false;
     }
 
     // ═════════════════════════════════════════════════════════════════
