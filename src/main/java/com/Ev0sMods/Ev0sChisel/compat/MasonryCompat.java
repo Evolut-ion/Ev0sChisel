@@ -404,15 +404,16 @@ public final class MasonryCompat {
      * @return array of valid derived keys, or null if substitutions was null
      */
     public static String[] deriveExistingVariants(String[] substitutions, String suffix) {
-        if (substitutions == null) return null;
+        if (substitutions == null) return new String[0];
         List<String> result = new ArrayList<>();
         for (String sub : substitutions) {
+            if (sub == null) continue; // Ignore missing/null keys
             String candidate = sub + suffix;
-                try {
+            try {
                 if (BlockTypeCache.exists(candidate)) {
                     result.add(candidate);
                 }
-            } catch (Exception ignored) { /* block type doesn't exist */ }
+            } catch (Exception ignored) { /* block type doesn't exist, skip */ }
         }
         return result.toArray(new String[0]);
     }

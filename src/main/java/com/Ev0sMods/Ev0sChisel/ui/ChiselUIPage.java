@@ -929,7 +929,7 @@ public final class ChiselUIPage {
         String matchPrefix = "rock_" + rockType.toLowerCase(Locale.ROOT);
         List<String> filtered = new ArrayList<>();
         for (String s : arr) {
-            if (s == null) continue;
+            if (s == null) continue; // Ignore missing/null keys
             String lower = s.toLowerCase(Locale.ROOT);
             if (lower.startsWith("rock_")) {
                 if (lower.equals(matchPrefix)

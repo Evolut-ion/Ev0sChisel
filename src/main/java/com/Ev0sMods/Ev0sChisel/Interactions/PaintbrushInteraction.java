@@ -33,8 +33,15 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
 
     protected void interactWithBlock(@NonNullDecl World world, @NonNullDecl CommandBuffer<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> commandBuffer, @NonNullDecl InteractionType interactionType, @NonNullDecl InteractionContext interactionContext, @NullableDecl ItemStack itemStack, @NonNullDecl Vector3i vector3i, @NonNullDecl CooldownHandler cooldownHandler) {
+        if (interactionContext == null) {
+            LOGGER.atInfo().log("[Paintbrush] Ignored interaction: missing context");
+            return;
+        }
         BlockPosition contextTargetBlock = interactionContext.getTargetBlock();
-        if (contextTargetBlock == null) return;
+        if (contextTargetBlock == null || (contextTargetBlock.x == 0 && contextTargetBlock.y == 0 && contextTargetBlock.z == 0)) {
+            LOGGER.atInfo().log("[Paintbrush] Ignored interaction at (0,0,0) or null target block");
+            return;
+        }
 
         WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(contextTargetBlock.x, contextTargetBlock.z));
         if (chunk == null) return;

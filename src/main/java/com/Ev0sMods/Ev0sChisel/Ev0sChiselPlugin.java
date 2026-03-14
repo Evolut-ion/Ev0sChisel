@@ -53,10 +53,19 @@ public class Ev0sChiselPlugin extends JavaPlugin {
 
     protected void start() {
         this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin enabled!");
+        // Serial compat initialization for faster, safer startup
+        MasonryCompat.init();
+        CarpentryCompat.init();
+        StoneworksCompat.init();
+        MacawCompat.init();
+        CompatMerger.mergeAllCompatData();
         
-        // Warmup BlockType cache and initialize compat passes in parallel
-        // This preloads likely keys and speeds up the serial probing done previously.
-        CompatInitializer.warmupAndInit(Runtime.getRuntime().availableProcessors());
+        
+        injectDerivedBlockStates();
+        NoCubeNeonCompat.init();
+        // Ensure paintbrush compat layers are injected
+        NoCubeNeonCompat.injectPaintbrushStates();
+        VanillaClothCompat.injectPaintbrushStates();
     }
 
     public void shutdown() {

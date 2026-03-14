@@ -503,12 +503,20 @@ public final class VanillaCompat {
 
     /** Null-safe {@code Collections.addAll} into a set. */
     private static void addAll(Set<String> set, String[] arr) {
-        if (arr != null) Collections.addAll(set, arr);
+        if (arr != null) {
+            for (String s : arr) {
+                if (s != null) set.add(s); // Ignore missing/null keys
+            }
+        }
     }
 
     /** Null-safe {@code Collections.addAll} into a list. */
     private static void addAll(List<String> list, String[] arr) {
-        if (arr != null) Collections.addAll(list, arr);
+        if (arr != null) {
+            for (String s : arr) {
+                if (s != null) list.add(s); // Ignore missing/null keys
+            }
+        }
     }
 
     /** Reflective field setter – works on private / final fields. */

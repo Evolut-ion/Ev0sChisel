@@ -43,13 +43,20 @@ public class ChiselInteraction extends SimpleBlockInteraction {
     private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
 
     protected void interactWithBlock(@NonNullDecl World world, @NonNullDecl CommandBuffer<EntityStore> commandBuffer, @NonNullDecl InteractionType interactionType, @NonNullDecl InteractionContext interactionContext, @NullableDecl ItemStack itemStack, @NonNullDecl Vector3i vector3i, @NonNullDecl CooldownHandler cooldownHandler) {
+        if (interactionContext == null) {
+            LOGGER.atInfo().log("[Chisel] Ignored interaction: missing context");
+            return;
+        }
         BlockPosition contextTargetBlock = interactionContext.getTargetBlock();
-        assert contextTargetBlock != null;
+        if (contextTargetBlock == null || (contextTargetBlock.x == 0 && contextTargetBlock.y == 0 && contextTargetBlock.z == 0)) {
+            LOGGER.atInfo().log("[Chisel] Ignored interaction at (0,0,0) or null target block");
+            return;
+        }
 
         ((HytaleLogger.Api) HytaleLogger.getLogger().atInfo()).log("[Chisel] interactWithBlock called at " + contextTargetBlock.x + "," + contextTargetBlock.y + "," + contextTargetBlock.z);
 
         WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(contextTargetBlock.x, contextTargetBlock.z));
-        assert chunk != null;
+        if (chunk == null) return;
 
         BlockState blockState = chunk.getState(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
 

@@ -143,13 +143,16 @@ public final class NoCubeNeonCompat {
         List<String> out = new ArrayList<>();
         String normMod = modName.replaceAll("[^A-Za-z0-9_]", "_");
         String normBase = baseName.replaceAll("[^A-Za-z0-9_]", "_");
-        // Common possibilities
+        // Add exact base name (matches block key)
+        out.add(baseName);
         out.add(normBase);
         out.add(normMod + "_" + normBase);
         out.add(normMod + ":" + normBase);
         out.add("NoCube_" + normBase);
         out.add("NoCube_Neon_" + normBase);
         out.add("nocube_neon_" + normBase);
+        // Add common block key pattern for NoCube Neon blocks
+        out.add("NoCube_Neon_Block_" + normBase);
         return out;
     }
 
