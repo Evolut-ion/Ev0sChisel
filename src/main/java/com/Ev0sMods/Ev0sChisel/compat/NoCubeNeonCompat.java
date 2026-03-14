@@ -27,29 +27,9 @@ public final class NoCubeNeonCompat {
 
     public static void init() {
         try {
-            String home = System.getProperty("user.home");
-            if (home == null) {
-                detected = false;
-                return;
-            }
-            File modsDir = new File(home, "AppData\\Roaming\\Hytale\\UserData\\Mods");
-            if (!modsDir.exists() || !modsDir.isDirectory()) {
-                detected = false;
-                LOGGER.atInfo().log("[Paintbrush] No user Mods folder found – NoCube compat disabled");
-                return;
-            }
-            // Accept either a mod directory or a zip archive that contains the NoCube Neon mod
-            File[] matches = modsDir.listFiles(f -> (f.isDirectory() || (f.isFile() && f.getName().toLowerCase(Locale.ROOT).endsWith(".zip")))
-                    && f.getName().toLowerCase(Locale.ROOT).contains("nocube"));
-            if (matches == null || matches.length == 0) {
-                detected = false;
-                LOGGER.atInfo().log("[Paintbrush] No NoCube Neon mod folder found – compat disabled");
-                return;
-            }
-
             detected = true;
-            LOGGER.atInfo().log("[Paintbrush] NoCube Neon mod folder(s) detected – probing for variants");
-            buildVariantList(matches);
+            LOGGER.atInfo().log("[Paintbrush] NoCube Neon registry probing for variants");
+            buildVariantList();
         } catch (Throwable t) {
             detected = false;
             LOGGER.atWarning().log("[Paintbrush] Failed to init NoCube compat: " + t.getMessage());
@@ -60,81 +40,41 @@ public final class NoCubeNeonCompat {
 
     public static List<String> getVariants() { return Collections.unmodifiableList(VARIANTS); }
 
-    private static void buildVariantList(File[] modDirs) {
+    /**
+     * Builds the variant list by probing the registry for all likely NoCube Neon block keys.
+     * No runtime directory or file scans are performed.
+     */
+    private static final String[] BASE_COLORS = {
+        "Red", "Blue", "Green", "Yellow", "White", "Black",
+        "Orange", "Purple", "Pink", "Cyan", "Magenta",
+        "Lime", "Brown", "Gray", "Beige", "Cream", "Ivory",
+        "Violet", "Indigo", "Teal", "Maroon", "Navy", "Olive",
+        "Aqua", "Rose", "Coral", "Peach", "Salmon", "Crimson",
+        "Amber", "Gold", "Silver", "Tan", "Khaki"
+    };
+
+    private static final String[] ALL_COLORS;
+    static {
+        List<String> all = new ArrayList<>();
+        Collections.addAll(all, BASE_COLORS);
+        for (String c : BASE_COLORS) { all.add(c + "_Light"); all.add(c + "_Dark"); }
+        for (String c : BASE_COLORS) { all.add("Light_" + c); all.add("Dark_" + c); }
+        ALL_COLORS = all.toArray(new String[0]);
+    }
+
+    private static void buildVariantList() {
         VARIANTS.clear();
-        LOGGER.atInfo().log("[Paintbrush] Scanning mod candidates: " + Arrays.toString(modDirs));
-        for (File mod : modDirs) {
-            // If mod is a directory, iterate files inside it
-            if (mod.isDirectory()) {
-                File[] children = mod.listFiles();
-                if (children == null) continue;
-                for (File f : children) {
-                    if (f.isDirectory()) continue;
-                    String name = f.getName();
-                    int dot = name.lastIndexOf('.');
-                    String base = dot > 0 ? name.substring(0, dot) : name;
-                    List<String> candidates = generateCandidates(mod.getName(), base);
-                    for (String cand : candidates) {
-                        try {
-                            boolean exists = BlockTypeCache.exists(cand);
-                            LOGGER.atInfo().log("[Paintbrush] Candidate: " + cand + " -> exists=" + exists);
-                            if (exists && !VARIANTS.contains(cand)) {
-                                String lower = cand.toLowerCase(Locale.ROOT);
-                                if (lower.contains("nocube") || lower.contains("neon") || mod.getName().toLowerCase(Locale.ROOT).contains("nocube")) {
-                                    VARIANTS.add(cand);
-                                }
-                            }
-                        } catch (Throwable t) {
-                            LOGGER.atWarning().log("[Paintbrush] Error probing candidate " + cand + ": " + t.getMessage());
-                        }
+        String[] probes = {"NoCube_Neon_Block_", "NoCube_Neon_", "NoCube_Neon", "nocube_neon_", "nocube_neon"};
+        for (String prefix : probes) {
+            for (String color : ALL_COLORS) {
+                String key = prefix + color;
+                try {
+                    if (BlockTypeCache.exists(key) && !VARIANTS.contains(key)) {
+                        VARIANTS.add(key);
                     }
-                }
-            } else if (mod.isFile() && mod.getName().toLowerCase(Locale.ROOT).endsWith(".zip")) {
-                // If mod is a zip archive, inspect entries
-                try (java.util.zip.ZipFile zf = new java.util.zip.ZipFile(mod)) {
-                    Enumeration<? extends java.util.zip.ZipEntry> entries = zf.entries();
-                    while (entries.hasMoreElements()) {
-                        java.util.zip.ZipEntry entry = entries.nextElement();
-                        if (entry.isDirectory()) continue;
-                        String path = entry.getName();
-                        String name = path.substring(path.lastIndexOf('/') + 1);
-                        int dot = name.lastIndexOf('.');
-                        String base = dot > 0 ? name.substring(0, dot) : name;
-                        List<String> candidates = generateCandidates(mod.getName(), base);
-                        for (String cand : candidates) {
-                            try {
-                                boolean exists = BlockTypeCache.exists(cand);
-                                LOGGER.atInfo().log("[Paintbrush] ZIP candidate: " + cand + " -> exists=" + exists + " (entry=" + path + ")");
-                                if (exists && !VARIANTS.contains(cand)) {
-                                    String lower = cand.toLowerCase(Locale.ROOT);
-                                    if (lower.contains("nocube") || lower.contains("neon") || mod.getName().toLowerCase(Locale.ROOT).contains("nocube")) {
-                                        VARIANTS.add(cand);
-                                    }
-                                }
-                            } catch (Throwable ignored) { }
-                        }
-                    }
-                } catch (Throwable t) {
-                    // ignore unreadable archives
-                }
+                } catch (Throwable ignored) { }
             }
         }
-
-        // If no variants discovered from filenames, probe common numeric suffixes
-        if (VARIANTS.isEmpty()) {
-            String[] probes = {"NoCube_Neon_", "NoCube_Neon", "nocube_neon_", "nocube_neon"};
-            for (String prefix : probes) {
-                for (int i = 0; i < 32; i++) {
-                    String key = prefix + i;
-                    try {
-                                if (BlockTypeCache.exists(key) && !VARIANTS.contains(key)) {
-                                    VARIANTS.add(key);
-                                }
-                    } catch (Throwable ignored) { }
-                }
-            }
-        }
-
         LOGGER.atInfo().log("[Paintbrush] Discovered " + VARIANTS.size() + " NoCube Neon variants: " + VARIANTS);
     }
 

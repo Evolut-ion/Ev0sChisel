@@ -96,7 +96,7 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
         }
 
         if (!(blockState instanceof Paintbrush)) {
-            // For simplicity, open paintbrush UI in table mode (no input handling implemented)
+            // If block doesn't have paintbrush state, open paintbrush table UI with all color variants
             PaintbrushUIPage.openTable(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player);
             return;
         }
