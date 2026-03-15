@@ -63,6 +63,7 @@ loadScripts(document, 'script');</script>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#openPaintbrushTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity,java.lang.String%5B%5D)" tabindex="0">openPaintbrushTable(PlayerRef, Store, World, Vector3i, LivingEntity, String[])</a></li>
+<li><a href="#openPaintbrushTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity,java.lang.String%5B%5D,int)" tabindex="0">openPaintbrushTable(PlayerRef, Store, World, Vector3i, LivingEntity, String[], int)</a></li>
 <li><a href="#openPaintbrush(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity,java.lang.String%5B%5D)" tabindex="0">openPaintbrush(PlayerRef, Store, World, Vector3i, LivingEntity, String[])</a></li>
 <li><a href="#openTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity)" tabindex="0">openTable(PlayerRef, Store, World, Vector3i, LivingEntity)</a></li>
 </ol>
@@ -130,12 +131,23 @@ loadScripts(document, 'script');</script>
 <div class="block">Opens paintbrush table mode for inventory conversion.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#openTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity)" class="member-name-link">openTable</a><wbr>(com.hypixel.hytale.server.core.universe.PlayerRef&nbsp;playerRef,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#openPaintbrushTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity,java.lang.String%5B%5D,int)" class="member-name-link">openPaintbrushTable</a><wbr>(com.hypixel.hytale.server.core.universe.PlayerRef&nbsp;playerRef,
+ com.hypixel.hytale.component.Store&lt;com.hypixel.hytale.server.core.universe.world.storage.EntityStore&gt;&nbsp;store,
+ com.hypixel.hytale.server.core.universe.world.World&nbsp;world,
+ com.hypixel.hytale.math.vector.Vector3i&nbsp;blockPos,
+ com.hypixel.hytale.server.core.entity.LivingEntity&nbsp;player,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>[]&nbsp;variants,
+ int&nbsp;variantPage)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Opens paintbrush table mode with page support.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#openTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity)" class="member-name-link">openTable</a><wbr>(com.hypixel.hytale.server.core.universe.PlayerRef&nbsp;playerRef,
  com.hypixel.hytale.component.Store&lt;com.hypixel.hytale.server.core.universe.world.storage.EntityStore&gt;&nbsp;store,
  com.hypixel.hytale.server.core.universe.world.World&nbsp;world,
  com.hypixel.hytale.math.vector.Vector3i&nbsp;blockPos,
  com.hypixel.hytale.server.core.entity.LivingEntity&nbsp;player)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
 </div>
 </div>
 </div>
@@ -180,6 +192,21 @@ loadScripts(document, 'script');</script>
  com.hypixel.hytale.server.core.entity.LivingEntity&nbsp;player,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>[]&nbsp;variants)</span></div>
 <div class="block">Opens paintbrush table mode for inventory conversion.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="openPaintbrushTable(com.hypixel.hytale.server.core.universe.PlayerRef,com.hypixel.hytale.component.Store,com.hypixel.hytale.server.core.universe.world.World,com.hypixel.hytale.math.vector.Vector3i,com.hypixel.hytale.server.core.entity.LivingEntity,java.lang.String[],int)">
+<h3>openPaintbrushTable</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">openPaintbrushTable</span><wbr><span class="parameters">(com.hypixel.hytale.server.core.universe.PlayerRef&nbsp;playerRef,
+ com.hypixel.hytale.component.Store&lt;com.hypixel.hytale.server.core.universe.world.storage.EntityStore&gt;&nbsp;store,
+ com.hypixel.hytale.server.core.universe.world.World&nbsp;world,
+ com.hypixel.hytale.math.vector.Vector3i&nbsp;blockPos,
+ com.hypixel.hytale.server.core.entity.LivingEntity&nbsp;player,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>[]&nbsp;variants,
+ int&nbsp;variantPage)</span></div>
+<div class="block">Opens paintbrush table mode with page support.</div>
 </div>
 </section>
 </li>

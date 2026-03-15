@@ -102,21 +102,19 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
         }
 
         if (blockState instanceof Paintbrush pb) {
-            String[] variants = pick(pb.colorVariants, pb.data != null ? pb.data.colorVariants : null);
-            // resolved variants for paintbrush block (info log removed)
+            String[] variants = new String[0];
+            if (pb.data != null) {
+                String src = pb.data.source;
+                if ("Cloth_Block_Wool".equals(src) || "Cloth_Roof".equals(src) || "Wood_Village_Wall".equals(src) || "NoCube_Neon".equals(src)) {
+                    variants = pb.data.colorVariants != null ? pb.data.colorVariants : new String[0];
+                }
+            }
 
             if (variants != null && variants.length > 0) {
                 PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, variants);
             } else {
-                // Attempt to discover variants from user mods folder (best-effort)
-                java.util.List<String> discovered = discoverUserModVariants();
-                // discovered fallback variants for paintbrush (info log removed)
-                if (discovered != null && !discovered.isEmpty()) {
-                    String[] arr = discovered.toArray(new String[0]);
-                    PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, arr);
-                } else {
-                    LOGGER.atWarning().log("[Paintbrush] No color variants found for block");
-                }
+                // Do not fall back to chisel variants — only use explicit paintbrush sources.
+                PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, new String[0]);
             }
         }
     }

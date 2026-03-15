@@ -5,7 +5,6 @@ import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
 
-import java.lang.reflect.Field;
 import java.util.*;
 
 /**
@@ -447,15 +446,14 @@ public final class MacawCompat {
         return null;
     }
 
-    /** Reads the Chisel.Data substitutions already defined on Rock_{type}. */
+    /** Reads the Chisel substitutions already defined on Rock_{type}. */
     private static String[] getRockSubstitutions(String stoneType) {
         try {
+            // Fallback: native BlockType state (plugin JSON)
             BlockType rockBlock = BlockTypeCache.get("Rock_" + stoneType);
             if (rockBlock == null) return null;
             StateData state = rockBlock.getState();
-            if (state instanceof Chisel.Data chiselData) {
-                return chiselData.substitutions;
-            }
+            if (state instanceof Chisel.Data chiselData) return chiselData.substitutions;
         } catch (Exception e) {
             LOGGER.atWarning().log("[Chisel] Could not read rock subs for Rock_"
                     + stoneType + ": " + e.getMessage());

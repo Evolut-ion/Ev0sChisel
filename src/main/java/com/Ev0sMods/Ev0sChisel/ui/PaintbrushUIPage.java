@@ -58,6 +58,11 @@ public final class PaintbrushUIPage {
 
 	/** Opens paintbrush table mode for inventory conversion. */
 	public static void openPaintbrushTable(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player, String[] variants) {
+		openPaintbrushTable(playerRef, store, world, blockPos, player, variants, 0);
+	}
+
+	/** Opens paintbrush table mode with page support. */
+	public static void openPaintbrushTable(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player, String[] variants, int variantPage) {
 		Inventory inv = player.getInventory();
 		if (inv == null) {
 			openPaintbrush(playerRef, store, world, blockPos, player, variants);
@@ -68,6 +73,16 @@ public final class PaintbrushUIPage {
 		collectBlockItems(items, inv.getStorage(), 1);
 		int dyeCount = getDyeBaseCount(inv);
 
+		// pagination for variants: 9x4 grid
+		final int VAR_COLUMNS = 9;
+		final int VAR_ROWS = 4;
+		final int VAR_PER_PAGE = VAR_COLUMNS * VAR_ROWS; // 36
+		int totalVariants = variants == null ? 0 : variants.length;
+		int totalPages = Math.max(1, (totalVariants + VAR_PER_PAGE - 1) / VAR_PER_PAGE);
+		int page = Math.max(0, Math.min(variantPage, totalPages - 1));
+		int startIndex = page * VAR_PER_PAGE;
+		int endIndex = Math.min(startIndex + VAR_PER_PAGE, totalVariants);
+
 		StringBuilder sb = new StringBuilder();
 		sb.append("<p class=\"title-label\">Paintbrush Table</p>\n");
 		sb.append("<p class=\"info-label\">Convert blocks in your inventory to color variants.\nEach conversion consumes 1 Dye_Base per item.</p>\n");
@@ -77,10 +92,33 @@ public final class PaintbrushUIPage {
 		sb.append("<div class=\"separator\"></div>\n");
 
 		// Inventory grid
-		// Color Variants area (initially empty until a block is selected)
+		// Color Variants area: render current page of variants (9x4)
 		sb.append("<div class=\"section-label\">Color Variants</div>\n");
 		sb.append("<div class=\"btn-grid\">\n");
-		sb.append("  <p class=\"info-label\">Select a block from the inventory below to view its color variants.</p>\n");
+		if (totalVariants == 0) {
+			sb.append("  <p class=\"info-label\">Select a block from the inventory below to view its color variants.</p>\n");
+			sb.append("  <div class=\"variant-row\"><p class=\"hint-label\">NO icons</p></div>\n");
+		} else {
+			for (int slot = 0; slot < VAR_PER_PAGE; slot++) {
+				int idx = startIndex + slot;
+				if (slot % VAR_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
+				if (idx < endIndex) {
+					String key = variants[idx];
+					sb.append(String.format("      <button id=\"out_%d\" class=\"variant-btn\" data-hyui-tooltiptext=\"%s\">", slot, key));
+					sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", key));
+					sb.append("</button>\n");
+				} else {
+					sb.append("      <div class=\"empty-slot\"></div>\n");
+				}
+				if (slot % VAR_COLUMNS == VAR_COLUMNS - 1) sb.append("  </div>\n");
+			}
+			// Pagination controls
+			sb.append("<div class=\"page-row\">\n");
+			sb.append(String.format("  <button id=\"page_prev\" class=\"page-btn\">Prev</button>\n"));
+			sb.append(String.format("  <p class=\"page-label\">Page %d / %d</p>\n", page + 1, totalPages));
+			sb.append(String.format("  <button id=\"page_next\" class=\"page-btn\">Next</button>\n"));
+			sb.append("</div>\n");
+		}
 		sb.append("</div>\n");
 		sb.append("<div class=\"separator\"></div>\n");
 
@@ -119,24 +157,32 @@ public final class PaintbrushUIPage {
 				openPaintbrushTableInput(playerRef, store, world, blockPos, player, itemVars.length > 0 ? itemVars : variants, fIt.blockKey, fIt.count, fIt.slot, fIt.section, 0);
 			});
 		}
-
 		final String[] variantsFinal = variants;
-		// We intentionally do not render variant buttons in this view unless an
-		// inventory item has been selected. Only register out_* listeners when
-		// variant buttons are actually present.
-		boolean renderedVariants = false; // openPaintbrushTable shows no variants initially
-		if (renderedVariants) {
-			for (int i = 0; i < variantsFinal.length; i++) {
-				final int idx = i;
-				builder.addEventListener("out_" + idx, CustomUIEventBindingType.Activating, (e, ctx) -> {
-					String key = variantsFinal[idx];
-					// Conversion logic handled in openPaintbrushTableInput
-				});
-				builder.addEventListener("out_" + idx, CustomUIEventBindingType.RightClicking, (e, ctx) -> {
-					String key = variantsFinal[idx];
-					// Conversion logic handled in openPaintbrushTableInput
+		// Register listeners for rendered variant slots (0..VAR_PER_PAGE-1)
+		if (totalVariants > 0) {
+			for (int slot = 0; slot < VAR_PER_PAGE; slot++) {
+				final int s = slot;
+				final int variantIndex = startIndex + s;
+				if (variantIndex >= endIndex) continue; // no listener for empty slots
+				final String key = variantsFinal[variantIndex];
+				builder.addEventListener("out_" + s, CustomUIEventBindingType.Activating, (e, ctx) -> {
+					// If user clicks a variant in table view without selecting an inventory item,
+					// open the input view with the clicked variant as the only target variants.
+					openPaintbrushTableInput(playerRef, store, world, blockPos, player, new String[]{key}, "", 0, (short)0, 0, 0);
 				});
 			}
+
+			// Page navigation listeners
+			final int currentPage = page;
+			final int tp = totalPages;
+			builder.addEventListener("page_prev", CustomUIEventBindingType.Activating, (e, ctx) -> {
+				int newPage = Math.max(0, currentPage - 1);
+				openPaintbrushTable(playerRef, store, world, blockPos, player, variantsFinal, newPage);
+			});
+			builder.addEventListener("page_next", CustomUIEventBindingType.Activating, (e, ctx) -> {
+				int newPage = Math.min(tp - 1, currentPage + 1);
+				openPaintbrushTable(playerRef, store, world, blockPos, player, variantsFinal, newPage);
+			});
 		}
 
 		builder.open(store);
@@ -325,25 +371,30 @@ public final class PaintbrushUIPage {
 
 	private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
 
-	// Resolve color variants for a given block key using Paintbrush or Chisel data (best-effort).
+	// Resolve color variants for a given block key using Paintbrush data only.
+	// Chisel variants are explicitly ignored — Paintbrush UI should only
+	// present color groups injected by VanillaClothCompat or NoCubeNeonCompat.
 	private static String[] resolveVariantsForBlock(String blockKey) {
 		try {
 			BlockType bt = BlockTypeCache.get(blockKey);
 			if (bt == null) return new String[0];
 			if (bt.getState() instanceof Paintbrush.Data pData) {
-				if (pData.colorVariants != null) return pData.colorVariants;
-			}
-			if (bt.getState() instanceof Chisel.Data cData) {
-				if (cData.substitutions != null) return cData.substitutions;
+				String src = pData.source;
+				if ("Cloth_Block_Wool".equals(src) || "Cloth_Roof".equals(src) || "Wood_Village_Wall".equals(src) || "NoCube_Neon".equals(src)) {
+					if (pData.colorVariants != null) return pData.colorVariants;
+				}
 			}
 		} catch (Throwable ignored) { }
 		return new String[0];
 	}
 
 	public static void openPaintbrush(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player, String[] variants) {
+		openPaintbrush(playerRef, store, world, blockPos, player, variants, 0);
+	}
+
+	public static void openPaintbrush(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player, String[] variants, int variantPage) {
 		if (variants == null){ variants = new String[0]; }
 		final String[] variantList = variants;
-		// removed Paintbrush UI build info log
 
 		int dyeCount = 0;
 		try {
@@ -372,6 +423,16 @@ public final class PaintbrushUIPage {
 			LOGGER.atWarning().log("[Paintbrush] Failed to read inventory for dye count: " + t.getMessage());
 		}
 
+		// Pagination layout (9x4)
+		final int VAR_COLUMNS = 9;
+		final int VAR_ROWS = 4;
+		final int VAR_PER_PAGE = VAR_COLUMNS * VAR_ROWS; // 36
+		int totalVariants = variantList == null ? 0 : variantList.length;
+		int totalPages = Math.max(1, (totalVariants + VAR_PER_PAGE - 1) / VAR_PER_PAGE);
+		int page = Math.max(0, Math.min(variantPage, totalPages - 1));
+		int startIndex = page * VAR_PER_PAGE;
+		int endIndex = Math.min(startIndex + VAR_PER_PAGE, totalVariants);
+
 		StringBuilder sb = new StringBuilder();
 		sb.append("<p class=\"title-label\">Paintbrush</p>\n");
 		sb.append("<p class=\"info-label\">Select a color variant to apply.</p>\n");
@@ -382,14 +443,31 @@ public final class PaintbrushUIPage {
 		sb.append("<div class=\"mode-row\">\n");
 		sb.append("  <button id=\"pb_table_btn\" class=\"mode-btn\">Table Mode</button>\n");
 		sb.append("</div>\n");
+
 		sb.append("<div class=\"btn-grid\">\n");
-		for (int i = 0; i < variants.length; i++) {
-			if (i % 4 == 0) sb.append("  <div class=\"variant-row\">\n");
-			String key = variants[i];
-			sb.append(String.format("      <button id=\"vb_%d\" class=\"variant-btn\">", i));
-			sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", key));
-			sb.append("</button>\n");
-			if (i % 4 == 3 || i == variants.length - 1) sb.append("  </div>\n");
+		if (totalVariants == 0) {
+			sb.append("  <div class=\"variant-row\">\n");
+			sb.append("    <p class=\"hint-label\">NO icons</p>\n");
+			sb.append("  </div>\n");
+		} else {
+			for (int slot = 0; slot < VAR_PER_PAGE; slot++) {
+				int idx = startIndex + slot;
+				if (slot % VAR_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
+				if (idx < endIndex) {
+					String key = variantList[idx];
+					sb.append(String.format("      <button id=\"vb_%d\" class=\"variant-btn\">", slot));
+					sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", key));
+					sb.append("</button>\n");
+				} else {
+					sb.append("      <div class=\"empty-slot\"></div>\n");
+				}
+				if (slot % VAR_COLUMNS == VAR_COLUMNS - 1 || slot == VAR_PER_PAGE - 1) sb.append("  </div>\n");
+			}
+			sb.append("<div class=\"page-row\">\n");
+			sb.append(String.format("  <button id=\"page_prev\" class=\"page-btn\">Prev</button>\n"));
+			sb.append(String.format("  <p class=\"page-label\">Page %d / %d</p>\n", page + 1, totalPages));
+			sb.append(String.format("  <button id=\"page_next\" class=\"page-btn\">Next</button>\n"));
+			sb.append("</div>\n");
 		}
 		sb.append("</div>\n");
 
@@ -403,63 +481,63 @@ public final class PaintbrushUIPage {
 				.fromHtml(html)
 				.withLifetime(CustomPageLifetime.CanDismissOrCloseThroughInteraction);
 
-		for (int i = 0; i < variants.length; i++) {
-			final int idx = i;
-			final String key = variants[i];
-			builder.addEventListener("vb_" + i, CustomUIEventBindingType.Activating, (e, ctx) -> {
-				try {
-					Inventory inv = player.getInventory();
-					if (inv == null) {
-						return;
-					}
-					ItemContainer foundContainer = null;
-					short foundSlot = -1;
-					int foundQty = 0;
-					ItemContainer hot = inv.getHotbar();
-					ItemContainer stor = inv.getStorage();
-					if (hot != null) {
-						short cap = hot.getCapacity();
-						for (short s = 0; s < cap; s++) {
-							ItemStack st = hot.getItemStack(s);
-							if (st != null && !st.isEmpty() && "Dye_Base".equals(st.getItemId())) {
-								foundContainer = hot; foundSlot = s; foundQty = st.getQuantity(); break;
-							}
-						}
-					}
-					if (foundContainer == null && stor != null) {
-						short cap = stor.getCapacity();
-						for (short s = 0; s < cap; s++) {
-							ItemStack st = stor.getItemStack(s);
-							if (st != null && !st.isEmpty() && "Dye_Base".equals(st.getItemId())) {
-								foundContainer = stor; foundSlot = s; foundQty = st.getQuantity(); break;
-							}
-						}
-					}
-					if (foundContainer == null) {
-						return;
-					}
-					WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
-					if (chunk == null) {
-						return;
-					}
-					chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, key);
-					if (foundQty > 1) {
-						foundContainer.setItemStackForSlot(foundSlot, new ItemStack("Dye_Base", foundQty - 1));
-					} else {
-						foundContainer.setItemStackForSlot(foundSlot, null);
-					}
-					inv.markChanged();
-					// removed paintbrush applied variant info log
+		// Register listeners for rendered variant slots (0..VAR_PER_PAGE-1)
+		if (totalVariants > 0) {
+			for (int slot = 0; slot < VAR_PER_PAGE; slot++) {
+				final int s = slot;
+				final int variantIndex = startIndex + s;
+				if (variantIndex >= endIndex) continue;
+				final String key = variantList[variantIndex];
+				builder.addEventListener("vb_" + s, CustomUIEventBindingType.Activating, (e, ctx) -> {
 					try {
-						openPaintbrush(playerRef, store, world, blockPos, player, variantList);
-					} catch (Throwable t2) {
-						LOGGER.atWarning().log("[Paintbrush] Failed to refresh UI: " + t2.getMessage());
-					}
-				} catch (Throwable t) {
-					LOGGER.atWarning().log("[Paintbrush] Failed to apply variant: " + t.getMessage());
-				}
+						Inventory inv = player.getInventory();
+						if (inv == null) return;
+						ItemContainer foundContainer = null;
+						short foundSlot = -1;
+						int foundQty = 0;
+						ItemContainer hot = inv.getHotbar();
+						ItemContainer stor = inv.getStorage();
+						if (hot != null) {
+							short cap = hot.getCapacity();
+							for (short si = 0; si < cap; si++) {
+								ItemStack st = hot.getItemStack(si);
+								if (st != null && !st.isEmpty() && "Dye_Base".equals(st.getItemId())) { foundContainer = hot; foundSlot = si; foundQty = st.getQuantity(); break; }
+							}
+						}
+						if (foundContainer == null && stor != null) {
+							short cap = stor.getCapacity();
+							for (short si = 0; si < cap; si++) {
+								ItemStack st = stor.getItemStack(si);
+								if (st != null && !st.isEmpty() && "Dye_Base".equals(st.getItemId())) { foundContainer = stor; foundSlot = si; foundQty = st.getQuantity(); break; }
+							}
+						}
+						if (foundContainer == null) return;
+						WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
+						if (chunk == null) return;
+						chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, key);
+						if (foundQty > 1) {
+							foundContainer.setItemStackForSlot(foundSlot, new ItemStack("Dye_Base", foundQty - 1));
+						} else {
+							foundContainer.setItemStackForSlot(foundSlot, null);
+						}
+						inv.markChanged();
+						try { openPaintbrush(playerRef, store, world, blockPos, player, variantList, page); } catch (Throwable t2) { LOGGER.atWarning().log("[Paintbrush] Failed to refresh UI: " + t2.getMessage()); }
+					} catch (Throwable t) { LOGGER.atWarning().log("[Paintbrush] Failed to apply variant: " + t.getMessage()); }
+				});
+			}
+
+			final int currentPage = page;
+			final int tp = totalPages;
+			builder.addEventListener("page_prev", CustomUIEventBindingType.Activating, (e, ctx) -> {
+				int newPage = Math.max(0, currentPage - 1);
+				openPaintbrush(playerRef, store, world, blockPos, player, variantList, newPage);
+			});
+			builder.addEventListener("page_next", CustomUIEventBindingType.Activating, (e, ctx) -> {
+				int newPage = Math.min(tp - 1, currentPage + 1);
+				openPaintbrush(playerRef, store, world, blockPos, player, variantList, newPage);
 			});
 		}
+
 		builder.addEventListener("pb_table_btn", CustomUIEventBindingType.Activating, (e, ctx) -> {
 			openPaintbrushTable(playerRef, store, world, blockPos, player, variantList);
 		});
