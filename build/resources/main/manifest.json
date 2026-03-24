@@ -1,7 +1,7 @@
 {
     "Group": "Ev0sMods",
     "Name": "Ev0's Building Tools",
-    "Version": "0.1.8",
+    "Version": "0.2.1",
     "Description": "Building Tools for Survival customizations with Mod compatibility!",
     "Authors": [
         {
@@ -9,7 +9,7 @@
         }
     ],
     "Website": "example.org",
-    "ServerVersion": "2026.02.19-1a311a592",
+    "ServerVersion": "2026.03.23-338988e70",
     "Dependencies": {
         
     },

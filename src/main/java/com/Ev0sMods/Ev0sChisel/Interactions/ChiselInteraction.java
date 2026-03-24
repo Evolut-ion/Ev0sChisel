@@ -31,7 +31,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.cli
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockState;
+//import com.hypixel.hytale.server.core.universe.world.meta.BlockState;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
@@ -55,7 +55,8 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(contextTargetBlock.x, contextTargetBlock.z));
         if (chunk == null) return;
 
-        BlockState blockState = chunk.getState(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+        // BlockState was removed in prerelease; rely on BlockType.getState() (StateData / components)
+        //com.hypixel.hytale.server.core.universe.world.meta.BlockState blockState = null;
         com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType targetBlockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
 
         // Detect if this is a right-click-like interaction (heuristic)
@@ -78,7 +79,8 @@ public class ChiselInteraction extends SimpleBlockInteraction {
             try {
                 BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
                 String blockKey = blockType != null ? (String) blockType.getId() : null;
-                boolean isChiselLike = blockState instanceof Chisel;
+                // Determine chisel-like via injected BlockType state (compat) or derived key
+                boolean isChiselLike = false;
                 // Use outer isRightClick value (computed above)
                 boolean isStatue = false;
                 try {
@@ -176,17 +178,19 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         Vector3i blockPos = new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
 
         // ── Non-chisel block → open in Table mode ───────────────────────
-        // Accept blocks that either have a Chisel BlockState or whose BlockType
+        // Accept blocks that either have a per-block Chisel component or whose BlockType
         // was injected with a Chisel.Data state (compat-injected statue types).
-        boolean hasChiselLikeState = (blockState instanceof Chisel);
+        boolean hasChiselLikeState = false;
+        try {
+            Object comp = com.Ev0sMods.Ev0sChisel.compat.ComponentCompat.getBlockComponent(chunk, contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, com.Ev0sMods.Ev0sChisel.Chisel.class);
+            if (comp != null) hasChiselLikeState = true;
+        } catch (Throwable ignored) {}
         try {
                 if (targetBlockType != null) {
                 String tbId = targetBlockType.getId() != null ? targetBlockType.getId().toString() : "<null>";
                 StateData tstate = null;
                 try { tstate = targetBlockType.getState(); } catch (Throwable t) { /* ignore */ }
-                String stateCls = (tstate != null) ? tstate.getClass().getName() : "<null>";
                 boolean inst = (tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data);
-                // removed target blockType diagnostic log
                 if (!hasChiselLikeState && inst) hasChiselLikeState = true;
             } else {
                 // targetBlockType is null
@@ -238,24 +242,25 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         targetBlockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
         String blockKey = targetBlockType != null ? (String) targetBlockType.getId() : null;
 
-        // If the world's BlockState itself isn't a Chisel instance but the
-        // BlockType was injected with a `Chisel.Data` state (compat-injected
+        // If the BlockType was injected with a `Chisel.Data` state (compat-injected
         // statue BlockTypes), open the Chisel UI using that injected data.
         try {
             StateData tstate = targetBlockType != null ? targetBlockType.getState() : null;
-            if (!(blockState instanceof Chisel) && tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data injectedData) {
+            if (tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data injectedData) {
                 ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
                         safe(injectedData.substitutions), safe(injectedData.stairs), safe(injectedData.halfSlabs), safe(injectedData.roofing));
                 return;
             }
         } catch (Throwable ignored) {}
 
-        if (blockState instanceof Chisel chisel) {
-            // ── Gather substitution arrays ──────────────────────────────
-            String[] subs     = pick(chisel.substitutions, chisel.data != null ? chisel.data.substitutions : null);
-            String[] stairs   = pick(chisel.stairs,        chisel.data != null ? chisel.data.stairs : null);
-            String[] halfs    = pick(chisel.halfSlabs,     chisel.data != null ? chisel.data.halfSlabs : null);
-            String[] roofs    = pick(chisel.roofing,       chisel.data != null ? chisel.data.roofing : null);
+        // If there is per-block instance state it would be present as a BlockState in older APIs.
+        // With components, prefer BlockType-injected `Chisel.Data` for metadata.
+        StateData maybeState = targetBlockType != null ? targetBlockType.getState() : null;
+        if (maybeState instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data chiselData) {
+            String[] subs     = chiselData.substitutions;
+            String[] stairs   = chiselData.stairs;
+            String[] halfs    = chiselData.halfSlabs;
+            String[] roofs    = chiselData.roofing;
 
             // ── Detect rock type once (blockKey priority, shared by all) ─
             String detectedRockType = MasonryCompat.detectStoneType(blockKey, subs);

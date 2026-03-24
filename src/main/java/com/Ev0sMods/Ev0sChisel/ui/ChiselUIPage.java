@@ -755,7 +755,7 @@ public final class ChiselUIPage {
                 inv.getCombinedHotbarFirst().addItemStack(
                         new ItemStack(outputKey, convertCount));
             }
-                inv.markChanged();
+                            markInventoryChanged(inv);
                 // removed conversion info log
         } catch (Throwable t) {
             LOGGER.atWarning().log("[Chisel] Conversion failed: "
@@ -798,7 +798,6 @@ public final class ChiselUIPage {
             stairs = merge(stairs, MasonryCompat.getStairVariants(detectedRockType));
             halfs  = merge(halfs,  MasonryCompat.getHalfVariants(detectedRockType));
         }
-
         if (StoneworksCompat.isAvailable() && "stone".equals(detectedRockType))
             subs = merge(subs, StoneworksCompat.getVariants());
 
@@ -1171,5 +1170,19 @@ public final class ChiselUIPage {
         if (base != null) Collections.addAll(set, base);
         set.addAll(extra);
         return set.toArray(new String[0]);
+    }
+
+    // Best-effort: mark inventory/store as changed using reflection (replacement for HytaleCompat.markInventoryChanged)
+    private static void markInventoryChanged(Inventory inv) {
+        if (inv == null) return;
+        try {
+            java.lang.Class<?> c = inv.getClass();
+            for (java.lang.reflect.Method m : c.getMethods()) {
+                String n = m.getName().toLowerCase(java.util.Locale.ROOT);
+                if ((n.contains("mark") || n.contains("notify") || n.contains("changed")) && m.getParameterCount() == 0) {
+                    try { m.invoke(inv); return; } catch (Throwable ignored) {}
+                }
+            }
+        } catch (Throwable ignored) {}
     }
 }

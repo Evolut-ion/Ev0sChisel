@@ -23,7 +23,7 @@ import com.hypixel.hytale.server.core.modules.interaction.interaction.config.cli
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockState;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -46,35 +46,33 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
         WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(contextTargetBlock.x, contextTargetBlock.z));
         if (chunk == null) return;
 
-        BlockState blockState = chunk.getState(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+        // BlockState removed; rely on BlockType.getState() (component/state data)
 
         // Crouch + interact: rotate if block supports rotations (same behavior as Chisel)
         if (isCrouching(commandBuffer, interactionContext)) {
-            if (blockState instanceof Paintbrush) {
-                try {
-                    BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                    if (blockType != null) {
-                        VariantRotation vr = blockType.getVariantRotation();
-                        if (vr != null && vr != VariantRotation.None) {
-                            RotationTuple[] validRotations = vr.getRotations();
-                            if (validRotations != null && validRotations.length > 1) {
-                                int currentIdx = chunk.getRotationIndex(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                                int pos = 0;
-                                for (int i = 0; i < validRotations.length; i++) {
-                                    if (validRotations[i].index() == currentIdx) { pos = i; break; }
-                                }
-                                int nextPos = (pos + 1) % validRotations.length;
-                                RotationTuple next = validRotations[nextPos];
-                                int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                                int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
-                                chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, blockId, blockType, next.index(), filler, 0);
-                                // rotation applied (info log removed)
-                            }
+            try {
+                BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                StateData sd = blockType != null ? blockType.getState() : null;
+                if (!(sd instanceof com.Ev0sMods.Ev0sChisel.Paintbrush.Data)) {
+                    // not a paintbrush-annotated block
+                } else {
+                    VariantRotation vr = blockType.getVariantRotation();
+                    if (vr != null && vr != VariantRotation.None) {
+                        RotationTuple[] validRotations = vr.getRotations();
+                        if (validRotations != null && validRotations.length > 1) {
+                            int currentIdx = chunk.getRotationIndex(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                            int pos = 0;
+                            for (int i = 0; i < validRotations.length; i++) { if (validRotations[i].index() == currentIdx) { pos = i; break; } }
+                            int nextPos = (pos + 1) % validRotations.length;
+                            RotationTuple next = validRotations[nextPos];
+                            int blockId = chunk.getBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                            int filler  = chunk.getFiller(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+                            chunk.setBlock(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z, blockId, blockType, next.index(), filler, 0);
                         }
                     }
-                } catch (Throwable t) {
-                    LOGGER.atWarning().log("[Paintbrush] Failed to rotate block: " + t.getMessage());
                 }
+            } catch (Throwable t) {
+                LOGGER.atWarning().log("[Paintbrush] Failed to rotate block: " + t.getMessage());
             }
             return; // crouch always returns
         }
@@ -95,28 +93,27 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
             return;
         }
 
-        if (!(blockState instanceof Paintbrush)) {
-            // If block doesn't have paintbrush state, open paintbrush table UI with all color variants
-            PaintbrushUIPage.openTable(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player);
-            return;
-        }
-
-        if (blockState instanceof Paintbrush pb) {
+        // Prefer BlockType-injected Paintbrush.Data for metadata (components)
+        try {
+            BlockType bt = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
+            StateData sd = bt != null ? bt.getState() : null;
+            if (!(sd instanceof com.Ev0sMods.Ev0sChisel.Paintbrush.Data pData)) {
+                PaintbrushUIPage.openTable(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player);
+                return;
+            }
             String[] variants = new String[0];
-            if (pb.data != null) {
-                String src = pb.data.source;
+            if (pData != null) {
+                String src = pData.source;
                 if ("Cloth_Block_Wool".equals(src) || "Cloth_Roof".equals(src) || "Wood_Village_Wall".equals(src) || "NoCube_Neon".equals(src)) {
-                    variants = pb.data.colorVariants != null ? pb.data.colorVariants : new String[0];
+                    variants = pData.colorVariants != null ? pData.colorVariants : new String[0];
                 }
             }
-
             if (variants != null && variants.length > 0) {
                 PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, variants);
             } else {
-                // Do not fall back to chisel variants — only use explicit paintbrush sources.
                 PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, new String[0]);
             }
-        }
+        } catch (Throwable ignored) {}
     }
 
     private static String[] pick(String[] primary, String[] fallback) {

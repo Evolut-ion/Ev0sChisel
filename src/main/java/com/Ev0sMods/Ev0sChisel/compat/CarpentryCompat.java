@@ -341,7 +341,7 @@ public final class CarpentryCompat {
                     BlockType bt = BlockTypeCache.get(variantKey);
                     if (bt == null) { failed++; continue; }
 
-                    Chisel.Data data = new Chisel.Data();
+                    Chisel data = new Chisel();
                     data.source        = woodType;
                     data.substitutions = mergedBlockArr;
                     data.stairs        = mergedStairArr;

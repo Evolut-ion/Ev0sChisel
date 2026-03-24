@@ -5,7 +5,6 @@
 
 package com.Ev0sMods.Ev0sChisel;
 
-import com.Ev0sMods.Ev0sChisel.Chisel.Data;
 import com.Ev0sMods.Ev0sChisel.Interactions.ChiselInteraction;
 import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.CompatInitializer;
@@ -24,7 +23,6 @@ import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import com.hypixel.hytale.server.core.universe.world.meta.BlockStateRegistry;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.logging.Level;
@@ -76,9 +74,12 @@ public class Ev0sChiselPlugin extends JavaPlugin {
     }
 
     private void registerEvents() {
-        BlockStateRegistry blockStateRegistry = this.getBlockStateRegistry();
-        blockStateRegistry.registerBlockState(Chisel.class, "Ev0sChisel", Chisel.CODEC, Chisel.Data.class, Chisel.Data.CHISELCODEC);
-        blockStateRegistry.registerBlockState(Paintbrush.class, "Ev0sPaintbrush", Paintbrush.CODEC, Paintbrush.Data.class, Paintbrush.Data.PAINTBRUSHCODEC);
+        // Register as components (component API in prerelease) with compatibility fallback
+        try {
+            // Try to register per-block component types with prerelease ComponentRegistry via reflection.
+            com.Ev0sMods.Ev0sChisel.compat.ComponentCompat.registerComponent(Chisel.class, "Ev0sChisel", Chisel.CODEC);
+            com.Ev0sMods.Ev0sChisel.compat.ComponentCompat.registerComponent(Paintbrush.class, "Ev0sPaintbrush", Paintbrush.CODEC);
+        } catch (Throwable ignored) {}
         this.getCodecRegistry(Interaction.CODEC).register("ChiselInteraction", ChiselInteraction.class,  ChiselInteraction.CODEC );
         this.getCodecRegistry(Interaction.CODEC).register("PaintbrushInteraction", PaintbrushInteraction.class, PaintbrushInteraction.CODEC );
     }

@@ -1,1 +1,0 @@
-packageSearchIndex = [{"l":"All Packages","u":"allpackages-index.html","k":"18"},{"l":"com.Ev0sMods.Ev0sChisel"},{"l":"com.Ev0sMods.Ev0sChisel.compat"},{"l":"com.Ev0sMods.Ev0sChisel.Interactions"},{"l":"com.Ev0sMods.Ev0sChisel.ui"}];updateSearchResults();

@@ -60,6 +60,7 @@ public final class VanillaClothCompat {
         for (String c : BASE_COLORS) { all.add(c + "_Light"); all.add(c + "_Dark"); }
         // Prefix form: Light_Color / Dark_Color  (also checked as fallback)
         for (String c : BASE_COLORS) { all.add("Light_" + c); all.add("Dark_" + c); }
+        for (String c : BASE_COLORS) { all.add("Light" + c); all.add("Dark" + c); }
         ALL_COLORS = all.toArray(new String[0]);
     }
 
@@ -85,11 +86,13 @@ public final class VanillaClothCompat {
         String[] woolVariants        = discoverWoolVariants();
         String[] roofVariants        = discoverRoofVariants();
         String[] villageWallVariants = discoverVillageWallVariants();
+        String[] modernRoofVariants  = discoverModernRoofVariants();
 
         int total = 0;
         total += injectGroup(woolVariants,        "Cloth_Block_Wool");
         total += injectGroup(roofVariants,        "Cloth_Roof");
         total += injectGroup(villageWallVariants, "Wood_Village_Wall");
+        total += injectGroup(modernRoofVariants,  "Cloth_Modern");
 
         // injected Paintbrush.Data summary (info log removed)
     }
@@ -114,6 +117,17 @@ public final class VanillaClothCompat {
         }
         if (found.isEmpty()) {
             // no village wall blocks found (info log removed)
+        }
+        return found.toArray(new String[0]);
+    }
+    private static String[] discoverModernRoofVariants() {
+        List<String> found = new ArrayList<>();
+        for (String color : ALL_COLORS) {
+            String key = "Cloth_Modern_" + color + "_Roof";
+            if (exists(key)) found.add(key);
+        }
+        if (found.isEmpty()) {
+            // no modern roof blocks found (info log removed)
         }
         return found.toArray(new String[0]);
     }

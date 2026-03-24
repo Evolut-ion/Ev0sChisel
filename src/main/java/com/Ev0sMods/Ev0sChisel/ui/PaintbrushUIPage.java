@@ -288,7 +288,7 @@ public final class PaintbrushUIPage {
 							container.setItemStackForSlot(inputSlot, new ItemStack(key, toConvert));
 							inv.getCombinedHotbarFirst().addItemStack(new ItemStack(inputKey, inputCount - toConvert));
 						}
-						inv.markChanged();
+						markInventoryChanged(inv);
 					}
 				}
 				openPaintbrushTableInput(playerRef, store, world, blockPos, player, variants, key, inputCount - toConvert, inputSlot, inputSection, page);
@@ -307,7 +307,7 @@ public final class PaintbrushUIPage {
 							container.setItemStackForSlot(inputSlot, null);
 						}
 						inv.getCombinedHotbarFirst().addItemStack(new ItemStack(key, toConvert));
-						inv.markChanged();
+						markInventoryChanged(inv);
 					}
 				}
 				openPaintbrushTableInput(playerRef, store, world, blockPos, player, variants, inputKey, Math.max(0, inputCount - toConvert), inputSlot, inputSection, page);
@@ -370,6 +370,20 @@ public final class PaintbrushUIPage {
 	}
 
 	private static final HytaleLogger LOGGER = HytaleLogger.forEnclosingClass();
+
+	// Best-effort: mark inventory/store as changed using reflection (replacement for HytaleCompat.markInventoryChanged)
+	private static void markInventoryChanged(Inventory inv) {
+		if (inv == null) return;
+		try {
+			java.lang.Class<?> c = inv.getClass();
+			for (java.lang.reflect.Method m : c.getMethods()) {
+				String n = m.getName().toLowerCase(java.util.Locale.ROOT);
+				if ((n.contains("mark") || n.contains("notify") || n.contains("changed")) && m.getParameterCount() == 0) {
+					try { m.invoke(inv); return; } catch (Throwable ignored) {}
+				}
+			}
+		} catch (Throwable ignored) {}
+	}
 
 	// Resolve color variants for a given block key using Paintbrush data only.
 	// Chisel variants are explicitly ignored — Paintbrush UI should only
@@ -520,7 +534,7 @@ public final class PaintbrushUIPage {
 						} else {
 							foundContainer.setItemStackForSlot(foundSlot, null);
 						}
-						inv.markChanged();
+						markInventoryChanged(inv);
 						try { openPaintbrush(playerRef, store, world, blockPos, player, variantList, page); } catch (Throwable t2) { LOGGER.atWarning().log("[Paintbrush] Failed to refresh UI: " + t2.getMessage()); }
 					} catch (Throwable t) { LOGGER.atWarning().log("[Paintbrush] Failed to apply variant: " + t.getMessage()); }
 				});
