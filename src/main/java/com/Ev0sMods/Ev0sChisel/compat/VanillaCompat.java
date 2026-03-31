@@ -101,7 +101,10 @@ public final class VanillaCompat {
             "_Cracked", "_Cracked_Bricks",
             "_Mossy", "_Mossy_Bricks", "_Mossy_Cobble",
             "_Chiseled", "_Smooth", "_Cut", "_Ornate", "_Decorative","_Brick_Ornate","_Brick_Decorative",
-            "_Pillar", "_Pillar_Base", "_Pillar_Middle"
+            "_Pillar", "_Pillar_Base", "_Pillar_Middle",
+            "_Sloped_Half_Slab", "_Sloped_Half_Slab_Wall",
+            "_Sloped_Slab",      "_Sloped_Slab_Wall",
+            "_Thin_Slab_Slope",  "_Thin_Slab_Slope_Wall"
     };
 
     // ── Soil families ────────────────────────────────────────────────────

@@ -35,8 +35,10 @@ public final class VanillaFurnitureCompat {
 
     private static final String[] WOOD_TYPES = {
             "Blackwood", "Darkwood", "Deadwood", "Drywood", "Greenwood",
-            "Hardwood", "Lightwood", "Redwood", "Softwood", "Tropicalwood",
-            "Whitewood", "Goldenwood"
+            "Hardwood",  "Lightwood","Redwood",  "Softwood","Tropicalwood",
+            "Whitewood", "Goldenwood",
+            // Femboy's Delight exclusive wood types
+            "Pinkwood", "Skywood", "Windsweptwood", "Bluewood", "Frostwood"
     };
 
     // ─────────────────────────────────────────────────────────────────────
@@ -138,98 +140,91 @@ public final class VanillaFurnitureCompat {
 
     public static void init() {
         int total = 0;
-        total += injectPerWood(TORCH_DESIGNS,  "Furniture_Torches",  Tab.LIGHTS);
-        total += injectSigns();
-        total += injectPerWood(SHELF_DESIGNS,  "Furniture_Shelves",  Tab.STORAGE);
-        total += injectPerWood(BED_DESIGNS,        "Furniture_Beds",     Tab.STORAGE);
-        total += injectPerWood(MODULAR_TABLE_DESIGNS, "Modular_Tables",     Tab.TABLES);
-        total += injectGlobal(AURES_FENCE_KEYS,        "Aures_Fences",       Tab.WINDOWS);
-        total += injectGlobal(AURES_TROUGH_KEYS,       "Aures_Troughs",      Tab.STORAGE);
-        if (total > 0) {
-            LOGGER.atWarning().log("[VanillaFurnitureCompat] Injected onto " + total + " blocks.");
+
+        // ── Unified per-wood groups (all mods merged into one hammer) ─────
+        for (String wood : WOOD_TYPES) {
+            List<String> lights  = collectDesigns(TORCH_DESIGNS, wood);
+            List<String> windows = collectDesigns(SIGN_DESIGNS, wood);
+            List<String> storage = new ArrayList<>();
+            storage.addAll(collectDesigns(SHELF_DESIGNS, wood));
+            storage.addAll(collectDesigns(BED_DESIGNS, wood));
+            storage.addAll(FemboyDelightCompat.collectStorage(wood));
+            List<String> tables = new ArrayList<>();
+            tables.addAll(collectDesigns(MODULAR_TABLE_DESIGNS, wood));
+            tables.addAll(MacawFurnitureCompat.collectTables(wood));
+            tables.addAll(FemboyDelightCompat.collectTables(wood));
+            List<String> chairs = new ArrayList<>();
+            chairs.addAll(MacawFurnitureCompat.collectChairs(wood));
+            chairs.addAll(FemboyDelightCompat.collectChairs(wood));
+
+            if (lights.isEmpty() && windows.isEmpty() && storage.isEmpty()
+                    && tables.isEmpty() && chairs.isEmpty()) continue;
+
+            String[] chairArr   = chairs.toArray(new String[0]);
+            String[] tableArr   = tables.toArray(new String[0]);
+            String[] storageArr = storage.toArray(new String[0]);
+            String[] windowArr  = windows.toArray(new String[0]);
+            String[] lightArr   = lights.toArray(new String[0]);
+
+            CarpenterHammer.Data hammer = new CarpenterHammer.Data();
+            hammer.source  = "Furniture_" + wood;
+            hammer.chairs  = chairArr;
+            hammer.tables  = tableArr;
+            hammer.storage = storageArr;
+            hammer.windows = windowArr;
+            hammer.lights  = lightArr;
+
+            // Signs also get a chisel to cycle between sign forms
+            Chisel.Data signChisel = windows.isEmpty() ? null
+                    : buildChiselData("Furniture_Sign_" + wood, windowArr);
+
+            total += injectAll(lightArr,   hammer, null);
+            total += injectAll(storageArr, hammer, null);
+            total += injectAll(tableArr,   hammer, null);
+            total += injectAll(chairArr,   hammer, null);
+            total += injectAll(windowArr,  hammer, signChisel);
+
+            // Inject hammer onto plank as revert target
+            String plank = findPlankKey(wood);
+            if (plank != null) {
+                BlockType plankBt = BlockTypeCache.get(plank);
+                if (plankBt != null) ComboStateHelper.inject(plankBt, null, null, hammer);
+            }
         }
+
+        // ── Global groups (Aures – no wood suffix) ───────────────────────
+        total += injectGlobal(AURES_FENCE_KEYS,  "Aures_Fences",  Tab.WINDOWS);
+        total += injectGlobal(AURES_TROUGH_KEYS, "Aures_Troughs", Tab.STORAGE);
+
+        if (total > 0)
+            LOGGER.atWarning().log("[VanillaFurnitureCompat] Injected onto " + total + " blocks.");
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Generic per-wood injector (lights / storage tabs)
-    // Mirrors FurnitureWindowCompat.injectWoodWindows() structure.
+    // Per-wood data collector + injector helpers
     // ─────────────────────────────────────────────────────────────────────
 
     private enum Tab { LIGHTS, STORAGE, WINDOWS, TABLES }
 
-    private static int injectPerWood(String[] designs, String sourceBase, Tab tab) {
-        int count = 0;
-        for (String wood : WOOD_TYPES) {
-            List<String> found = new ArrayList<>();
-            for (String design : designs) {
-                // {design}_{wood} e.g. Furniture_Village_Torch_Hardwood
-                String k1 = design + "_" + wood;
-                if (exists(k1)) { found.add(k1); continue; }
-                // {wood}_{design} e.g. Hardwood_Furniture_Village_Torch
-                String k2 = wood + "_" + design;
-                if (exists(k2)) { found.add(k2); continue; }
-                // bare design key as fallback
-                if (exists(design)) found.add(design);
-            }
-            if (found.isEmpty()) continue;
-
-            // Prepend the plank key so players can revert to raw wood
-            String plank = findPlankKey(wood);
-            if (plank != null && !found.contains(plank)) found.add(0, plank);
-
-            String[] arr = found.toArray(new String[0]);
-            CarpenterHammer.Data hammer = buildHammer(sourceBase + "_" + wood, arr, tab);
-
-            for (String key : arr) {
-                if (key.equals(plank)) continue; // handled below
-                BlockType bt = BlockTypeCache.get(key);
-                if (bt == null) continue;
-                if (ComboStateHelper.inject(bt, null, null, hammer)) count++;
-            }
-            // Merge hammer onto plank without overwriting its chisel state
-            if (plank != null) {
-                BlockType plankBt = BlockTypeCache.get(plank);
-                if (plankBt != null) ComboStateHelper.inject(plankBt, null, null, hammer);
-            }
+    /** Collects keys for {@code designs} × {@code wood} using the three-probe order. */
+    private static List<String> collectDesigns(String[] designs, String wood) {
+        List<String> found = new ArrayList<>();
+        for (String design : designs) {
+            String k1 = design + "_" + wood;
+            if (exists(k1)) { found.add(k1); continue; }
+            String k2 = wood + "_" + design;
+            if (exists(k2)) { found.add(k2); continue; }
+            if (exists(design)) found.add(design);
         }
-        return count;
+        return found;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Signs → windows tab + per-wood chisel (sign ↔ wall sign)
-    // ─────────────────────────────────────────────────────────────────────
-
-    private static int injectSigns() {
+    private static int injectAll(String[] keys, CarpenterHammer.Data hammer, Chisel.Data chisel) {
         int count = 0;
-        for (String wood : WOOD_TYPES) {
-            List<String> found = new ArrayList<>();
-            for (String design : SIGN_DESIGNS) {
-                String k1 = design + "_" + wood;
-                if (exists(k1)) { found.add(k1); continue; }
-                String k2 = wood + "_" + design;
-                if (exists(k2)) { found.add(k2); continue; }
-                if (exists(design)) found.add(design);
-            }
-            if (found.isEmpty()) continue;
-
-            String plank = findPlankKey(wood);
-            if (plank != null && !found.contains(plank)) found.add(0, plank);
-
-            String[] arr = found.toArray(new String[0]);
-            // Chisel cycles between sign forms for the same wood type
-            Chisel.Data chisel = buildChiselData("Furniture_Sign_" + wood, arr);
-            CarpenterHammer.Data hammer = buildHammer("Furniture_Signs_" + wood, arr, Tab.WINDOWS);
-
-            for (String key : arr) {
-                if (key.equals(plank)) continue;
-                BlockType bt = BlockTypeCache.get(key);
-                if (bt == null) continue;
-                if (ComboStateHelper.inject(bt, chisel, null, hammer)) count++;
-            }
-            if (plank != null) {
-                BlockType plankBt = BlockTypeCache.get(plank);
-                if (plankBt != null) ComboStateHelper.inject(plankBt, null, null, hammer);
-            }
+        for (String key : keys) {
+            BlockType bt = BlockTypeCache.get(key);
+            if (bt == null) continue;
+            if (ComboStateHelper.inject(bt, chisel, null, hammer)) count++;
         }
         return count;
     }
