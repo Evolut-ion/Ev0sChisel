@@ -1,0 +1,59 @@
+{
+  "TranslationProperties": {
+    "Name": "Dye_Base"
+  },
+  "Icon": "Icons/ItemsGenerated/Dye_Base.png",
+  "IconProperties": {
+    "Scale": 0.8,
+    "Rotation": [
+      22.5,
+      45,
+      22.5
+    ],
+    "Translation": [
+      2,
+      -1
+    ]
+  },
+  "BlockType": {
+    "CustomModelTexture": [
+      {
+        "Texture": "Items/Icons/ItemsGenerated/dye_base_texture.png",
+        "Weight": 1
+      }
+    ],
+    "Gathering": {
+      "Soft": {}
+    },
+    "ParticleColor": "#295dee",
+    "DrawType": "Model",
+    "CustomModel": "Items/Icons/ItemsGenerated/Dye_Base.blockymodel"
+  },
+  "ItemLevel": 23,
+  "Recipe": {
+    "Input": [
+      {
+        "ItemId": "Plant_Petals_Red",
+        "Quantity": 1
+      },
+      {
+        "ItemId": "Plant_Petals_Green",
+        "Quantity": 1
+      },
+      {
+        "ItemId": "Plant_Petals_Blue"
+      }
+    ],
+    "OutputQuantity": 10,
+    "BenchRequirement": [
+      {
+        "Type": "Crafting",
+        "Id": "Workbench",
+        "Categories": [
+          "Workbench_Tools"
+        ]
+      }
+    ]
+  },
+  "Texture": "Items/Icons/ItemsGenerated/dye_base_texture.png"
+}
