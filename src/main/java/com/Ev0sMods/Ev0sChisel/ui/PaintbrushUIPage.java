@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache;
 		
-import com.Ev0sMods.Ev0sChisel.Chisel;
 import com.Ev0sMods.Ev0sChisel.Paintbrush;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 
@@ -29,13 +28,11 @@ public final class PaintbrushUIPage {
     
 	// Inventory item holder for table mode
 	private static final class InvItem {
-		final Object itemId;
 		final String blockKey;
 		final int count;
 		final short slot;
 		final int section;
-		InvItem(Object itemId, String blockKey, int count, short slot, int section) {
-			this.itemId = itemId;
+		InvItem(String blockKey, int count, short slot, int section) {
 			this.blockKey = blockKey;
 			this.count = count;
 			this.slot = slot;
@@ -50,9 +47,12 @@ public final class PaintbrushUIPage {
 		for (short slot = 0; slot < capacity; slot++) {
 			ItemStack stack = container.getItemStack(slot);
 			if (stack == null || stack.isEmpty()) continue;
-			String blockKey = stack.getItemId();
-			if (blockKey != null && !blockKey.isEmpty())
-				dest.add(new InvItem(stack.getItemId(), blockKey, stack.getQuantity(), slot, section));
+			String blockKey = stack.getBlockKey();
+			if (blockKey == null || blockKey.isEmpty()) {
+				blockKey = stack.getItemId();
+			}
+			if (!blockKey.isEmpty())
+				dest.add(new InvItem(blockKey, stack.getQuantity(), slot, section));
 		}
 	}
 
@@ -63,9 +63,11 @@ public final class PaintbrushUIPage {
 
 	/** Opens paintbrush table mode with page support. */
 	public static void openPaintbrushTable(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player, String[] variants, int variantPage) {
+		if (variants == null) variants = new String[0];
+		final String[] variantsFinal = variants;
 		Inventory inv = player.getInventory();
 		if (inv == null) {
-			openPaintbrush(playerRef, store, world, blockPos, player, variants);
+			openPaintbrush(playerRef, store, world, blockPos, player, variantsFinal);
 			return;
 		}
 		List<InvItem> items = new ArrayList<>();
@@ -77,7 +79,7 @@ public final class PaintbrushUIPage {
 		final int VAR_COLUMNS = 9;
 		final int VAR_ROWS = 4;
 		final int VAR_PER_PAGE = VAR_COLUMNS * VAR_ROWS; // 36
-		int totalVariants = variants == null ? 0 : variants.length;
+		int totalVariants = variantsFinal.length;
 		int totalPages = Math.max(1, (totalVariants + VAR_PER_PAGE - 1) / VAR_PER_PAGE);
 		int page = Math.max(0, Math.min(variantPage, totalPages - 1));
 		int startIndex = page * VAR_PER_PAGE;
@@ -103,10 +105,8 @@ public final class PaintbrushUIPage {
 				int idx = startIndex + slot;
 				if (slot % VAR_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
 				if (idx < endIndex) {
-					String key = variants[idx];
-					sb.append(String.format("      <button id=\"out_%d\" class=\"variant-btn\" data-hyui-tooltiptext=\"%s\">", slot, key));
-					sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", key));
-					sb.append("</button>\n");
+					String key = variantsFinal[idx];
+					sb.append(buildIconButton("out_" + slot, key, key));
 				} else {
 					sb.append("      <div class=\"empty-slot\"></div>\n");
 				}
@@ -132,9 +132,7 @@ public final class PaintbrushUIPage {
 		for (int i = 0; i < showCount; i++) {
 			if (i % INV_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
 			InvItem item = items.get(i);
-			sb.append(String.format("      <button id=\"inv_%d\" class=\"variant-btn\" data-hyui-tooltiptext=\"%s x%d\">", i, item.blockKey, item.count));
-			sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", item.blockKey));
-			sb.append("</button>\n");
+			sb.append(buildIconButton("inv_" + i, item.blockKey, item.blockKey + " x" + item.count));
 			if (i % INV_COLUMNS == INV_COLUMNS - 1 || i == showCount - 1) sb.append("  </div>\n");
 		}
 		sb.append("</div>\n");
@@ -154,10 +152,9 @@ public final class PaintbrushUIPage {
 			final String[] itemVars = resolveVariantsForBlock(it.blockKey);
 			final InvItem fIt = it;
 			builder.addEventListener("inv_" + i, CustomUIEventBindingType.Activating, (e, ctx) -> {
-				openPaintbrushTableInput(playerRef, store, world, blockPos, player, itemVars.length > 0 ? itemVars : variants, fIt.blockKey, fIt.count, fIt.slot, fIt.section, 0);
+				openPaintbrushTableInput(playerRef, store, world, blockPos, player, itemVars.length > 0 ? itemVars : variantsFinal, fIt.blockKey, fIt.count, fIt.slot, fIt.section, 0);
 			});
 		}
-		final String[] variantsFinal = variants;
 		// Register listeners for rendered variant slots (0..VAR_PER_PAGE-1)
 		if (totalVariants > 0) {
 			for (int slot = 0; slot < VAR_PER_PAGE; slot++) {
@@ -190,6 +187,8 @@ public final class PaintbrushUIPage {
 
 	// Helper: open table with input selected
 	private static void openPaintbrushTableInput(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player, String[] variants, String inputKey, int inputCount, short inputSlot, int inputSection, int variantPage) {
+		if (variants == null) variants = new String[0];
+		final String[] variantsFinal = variants;
 		
         Inventory inv = player.getInventory();
 		int dyeCount = getDyeBaseCount(inv);
@@ -204,8 +203,7 @@ public final class PaintbrushUIPage {
 				+ "<p class=\"input-count\">Dye Base: %d</p></div>\n", dyeCount));
 		sb.append("<div class=\"separator\"></div>\n");
 		sb.append("<div class=\"section-label\">Input</div>\n");
-		sb.append(String.format("<button id=\"clear_input\" class=\"variant-btn\" data-hyui-tooltiptext=\"Clear input\">"
-				+ "<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span></button>\n", inputKey));
+		sb.append(buildIconButton("clear_input", inputKey, "Clear input"));
 		sb.append(String.format("<p class=\"input-count\">%s x%d</p>\n", inputKey, inputCount));
 		sb.append("<div class=\"separator\"></div>\n");
 		// Color variants area with pagination (9x4 grid)
@@ -214,7 +212,7 @@ public final class PaintbrushUIPage {
 		int VAR_COLUMNS = 9;
 		int VAR_ROWS = 4;
 		int VAR_PER_PAGE = VAR_COLUMNS * VAR_ROWS; // 36
-		int totalVariants = variants == null ? 0 : variants.length;
+		int totalVariants = variantsFinal.length;
 		int totalPages = Math.max(1, (totalVariants + VAR_PER_PAGE - 1) / VAR_PER_PAGE);
 		int page = Math.max(0, Math.min(variantPage, totalPages - 1));
 		int startIndex = page * VAR_PER_PAGE;
@@ -223,10 +221,8 @@ public final class PaintbrushUIPage {
 			int idx = startIndex + slot;
 			if (slot % VAR_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
 			if (idx < endIndex) {
-				String key = variants[idx];
-				sb.append(String.format("      <button id=\"out_%d\" class=\"variant-btn\" data-hyui-tooltiptext=\"%s\">", slot, key));
-				sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", key));
-				sb.append("</button>\n");
+				String key = variantsFinal[idx];
+				sb.append(buildIconButton("out_" + slot, key, key));
 			} else {
 				sb.append("      <div class=\"empty-slot\"></div>\n");
 			}
@@ -252,9 +248,7 @@ public final class PaintbrushUIPage {
 		for (int i = 0; i < showCount; i++) {
 			if (i % INV_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
 			InvItem item = items.get(i);
-			sb.append(String.format("      <button id=\"inv_%d\" class=\"variant-btn\" data-hyui-tooltiptext=\"%s x%d\">", i, item.blockKey, item.count));
-			sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", item.blockKey));
-			sb.append("</button>\n");
+			sb.append(buildIconButton("inv_" + i, item.blockKey, item.blockKey + " x" + item.count));
 			if (i % INV_COLUMNS == INV_COLUMNS - 1 || i == showCount - 1) sb.append("  </div>\n");
 		}
 		sb.append("</div>\n");
@@ -274,7 +268,7 @@ public final class PaintbrushUIPage {
 			final int s = slot;
 			final int variantIndex = startIndex + s;
 			if (variantIndex >= endIndex) continue; // no listener for empty slots
-			final String key = variants[variantIndex];
+			final String key = variantsFinal[variantIndex];
 			builder.addEventListener("out_" + s, CustomUIEventBindingType.Activating, (e, ctx) -> {
 				int dyeAvailable = getDyeBaseCount(inv);
 				int toConvert = Math.min(inputCount, dyeAvailable);
@@ -291,7 +285,7 @@ public final class PaintbrushUIPage {
 						markInventoryChanged(inv);
 					}
 				}
-				openPaintbrushTableInput(playerRef, store, world, blockPos, player, variants, key, inputCount - toConvert, inputSlot, inputSection, page);
+				openPaintbrushTableInput(playerRef, store, world, blockPos, player, variantsFinal, key, inputCount - toConvert, inputSlot, inputSection, page);
 			});
 			builder.addEventListener("out_" + s, CustomUIEventBindingType.RightClicking, (e, ctx) -> {
 				int dyeAvailable = getDyeBaseCount(inv);
@@ -310,7 +304,7 @@ public final class PaintbrushUIPage {
 						markInventoryChanged(inv);
 					}
 				}
-				openPaintbrushTableInput(playerRef, store, world, blockPos, player, variants, inputKey, Math.max(0, inputCount - toConvert), inputSlot, inputSection, page);
+				openPaintbrushTableInput(playerRef, store, world, blockPos, player, variantsFinal, inputKey, Math.max(0, inputCount - toConvert), inputSlot, inputSection, page);
 			});
 		}
 
@@ -319,14 +313,14 @@ public final class PaintbrushUIPage {
 		final int tp = totalPages;
 		builder.addEventListener("page_prev", CustomUIEventBindingType.Activating, (e, ctx) -> {
 			int newPage = Math.max(0, currentPage - 1);
-			openPaintbrushTableInput(playerRef, store, world, blockPos, player, variants, inputKey, inputCount, inputSlot, inputSection, newPage);
+			openPaintbrushTableInput(playerRef, store, world, blockPos, player, variantsFinal, inputKey, inputCount, inputSlot, inputSection, newPage);
 		});
 		builder.addEventListener("page_next", CustomUIEventBindingType.Activating, (e, ctx) -> {
 			int newPage = Math.min(tp - 1, currentPage + 1);
-			openPaintbrushTableInput(playerRef, store, world, blockPos, player, variants, inputKey, inputCount, inputSlot, inputSection, newPage);
+			openPaintbrushTableInput(playerRef, store, world, blockPos, player, variantsFinal, inputKey, inputCount, inputSlot, inputSection, newPage);
 		});
 		builder.addEventListener("clear_input", CustomUIEventBindingType.Activating, (e, ctx) -> {
-			openPaintbrushTable(playerRef, store, world, blockPos, player, variants);
+			openPaintbrushTable(playerRef, store, world, blockPos, player, variantsFinal);
 		});
 
 		builder.open(store);
@@ -394,7 +388,7 @@ public final class PaintbrushUIPage {
 			if (bt == null) return new String[0];
 			if (bt.getState() instanceof Paintbrush.Data pData) {
 				String src = pData.source;
-				if ("Cloth_Block_Wool".equals(src) || "Cloth_Roof".equals(src) || "Wood_Village_Wall".equals(src) || "NoCube_Neon".equals(src)) {
+				if ("Cloth_Block_Wool".equals(src) || "Cloth_Roof".equals(src) || "Cloth_Modern".equals(src) || "Wood_Village_Wall".equals(src) || "NoCube_Neon".equals(src)) {
 					if (pData.colorVariants != null) return pData.colorVariants;
 				}
 			}
@@ -469,9 +463,7 @@ public final class PaintbrushUIPage {
 				if (slot % VAR_COLUMNS == 0) sb.append("  <div class=\"variant-row\">\n");
 				if (idx < endIndex) {
 					String key = variantList[idx];
-					sb.append(String.format("      <button id=\"vb_%d\" class=\"variant-btn\">", slot));
-					sb.append(String.format("<span class=\"item-icon\" data-hyui-item-id=\"%s\"></span>", key));
-					sb.append("</button>\n");
+					sb.append(buildIconButton("vb_" + slot, key, key));
 				} else {
 					sb.append("      <div class=\"empty-slot\"></div>\n");
 				}
@@ -505,7 +497,9 @@ public final class PaintbrushUIPage {
 				builder.addEventListener("vb_" + s, CustomUIEventBindingType.Activating, (e, ctx) -> {
 					try {
 						Inventory inv = player.getInventory();
-						if (inv == null) return;
+						if (inv == null) {
+							return;
+						}
 						ItemContainer foundContainer = null;
 						short foundSlot = -1;
 						int foundQty = 0;
@@ -525,10 +519,13 @@ public final class PaintbrushUIPage {
 								if (st != null && !st.isEmpty() && "Dye_Base".equals(st.getItemId())) { foundContainer = stor; foundSlot = si; foundQty = st.getQuantity(); break; }
 							}
 						}
-						if (foundContainer == null) return;
-						WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
-						if (chunk == null) return;
-						chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, key);
+						if (foundContainer == null) {
+							return;
+						}
+						if (!applyPaintVariant(world, blockPos, key)) {
+							LOGGER.atWarning().log("[Paintbrush] Failed to replace world block with " + key);
+							return;
+						}
 						if (foundQty > 1) {
 							foundContainer.setItemStackForSlot(foundSlot, new ItemStack("Dye_Base", foundQty - 1));
 						} else {
@@ -556,6 +553,41 @@ public final class PaintbrushUIPage {
 			openPaintbrushTable(playerRef, store, world, blockPos, player, variantList);
 		});
 		builder.open(store);
+	}
+
+	private static String buildIconButton(String id, String itemKey, String tooltip) {
+		return String.format(
+				"      <button id=\"%s\" data-hyui-tooltiptext=\"%s\" style=\"anchor-width: 52; anchor-height: 52; padding: 6; margin-top: 4; margin-bottom: 4; margin-left: 4; margin-right: 4;\">"
+				+ "<span class=\"item-icon\" data-hyui-item-id=\"%s\" style=\"anchor-width: 40; anchor-height: 40;\"></span>"
+				+ "</button>\n",
+				id, tooltip, itemKey);
+	}
+
+	private static boolean applyPaintVariant(World world, Vector3i blockPos, String blockKey) {
+		if (world == null || blockPos == null || blockKey == null || blockKey.isEmpty()) {
+			return false;
+		}
+		try {
+			WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
+			if (chunk == null) {
+				return false;
+			}
+
+			chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
+			BlockType updated = chunk.getBlockType(blockPos.x, blockPos.y, blockPos.z);
+			String updatedId = updated != null && updated.getId() != null ? String.valueOf(updated.getId()) : "";
+			if (blockKey.equals(updatedId)) {
+				return true;
+			}
+
+			chunk.setBlock(blockPos.x, blockPos.y, blockPos.z, blockKey);
+			updated = chunk.getBlockType(blockPos.x, blockPos.y, blockPos.z);
+			updatedId = updated != null && updated.getId() != null ? String.valueOf(updated.getId()) : "";
+			return blockKey.equals(updatedId);
+		} catch (Throwable t) {
+			LOGGER.atWarning().log("[Paintbrush] World replacement error for " + blockKey + ": " + t.getMessage());
+			return false;
+		}
 	}
 
 	public static void openTable(PlayerRef playerRef, Store<EntityStore> store, World world, Vector3i blockPos, LivingEntity player) {

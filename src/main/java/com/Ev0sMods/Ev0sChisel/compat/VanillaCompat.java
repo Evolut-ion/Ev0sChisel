@@ -1,12 +1,15 @@
 package com.Ev0sMods.Ev0sChisel.compat;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import com.Ev0sMods.Ev0sChisel.Chisel;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
-
-import java.lang.reflect.Field;
-import java.util.*;
 
 /**
  * Injects {@link Chisel.Data} onto vanilla Hytale blocks that belong to
@@ -34,8 +37,13 @@ public final class VanillaCompat {
     private static final String[] ROCK_TYPES = {
             "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
             "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
-            "Dirt", "Lime", "Marble", "Quartzite", "Sandstone", "Sandstone_Red", 
-            "Sandstone_White", "Snow", "Stone", "Gold"
+            "Dirt", "Ledge", "Ledge_Brick", "Lime", "Magma_Cooled", "Marble", "Peach",
+            "Quartzite", "Sandstone", "Sandstone_Red", "Sandstone_White", "Snow", "Stone",
+            "Gold", "Copper", "Bronze", "Iron", "Zinc"
+    };
+
+     private static final String[] METAL_TYPES = {
+            "Gold", "Copper", "Bronze", "Iron", "Zinc"
     };
 
     /**
@@ -45,6 +53,41 @@ public final class VanillaCompat {
     public static String[] getRockTypes() {
         return ROCK_TYPES;
     }
+
+    public static String[] getMetalTypes() {
+        return METAL_TYPES;
+    }
+
+    public static boolean isMetalType(String type) {
+        for (String metalType : METAL_TYPES) {
+            if (metalType.equalsIgnoreCase(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static String[] getRockNaturalSuffixes() {
+        return ROCK_NATURAL_SUFFIXES;
+    }
+
+    public static String[] getVanillaWoodSuffixes() {
+        return VANILLA_WOOD_SUFFIXES;
+    }
+
+    public static boolean isWoodRoofSuffix(String suffix) {
+        return WOOD_ROOF_SUFFIX_SET.contains(suffix);
+    }
+
+    /**
+     * Pipe suffixes to probe only for metal rock types.
+     * e.g. "Metal_Iron_Pipe_Corner", "Metal_Iron_Pipe_Long", …
+     */
+    private static final String[] METAL_PIPE_SUFFIXES = {
+            "_Pipe_Corner", "_Pipe_Chimney", "_Pipe_Large",
+            "_Pipe_Large_Corner", "_Pipe_Large_Mouthpiece",
+            "_Pipe_Long", "_Pipe_Short"
+    };
 
     /**
      * Natural (non-masonry-mod) suffixes to probe for each rock type.
@@ -57,8 +100,8 @@ public final class VanillaCompat {
             "_Slab",  "_Slabs",
             "_Cracked", "_Cracked_Bricks",
             "_Mossy", "_Mossy_Bricks", "_Mossy_Cobble",
-            "_Chiseled", "_Smooth", "_Cut", "_Ornate", "_Decorative",
-            "_Pillar"
+            "_Chiseled", "_Smooth", "_Cut", "_Ornate", "_Decorative","_Brick_Ornate","_Brick_Decorative",
+            "_Pillar", "_Pillar_Base", "_Pillar_Middle"
     };
 
     // ── Soil families ────────────────────────────────────────────────────
@@ -111,9 +154,11 @@ public final class VanillaCompat {
             "_Log",
             "_Log_Horizontal",
             "_Log_Corner",
+            "_Trunk",
             "_Stripped_Log",
             "_Stripped_Log_Horizontal",
             "_Stripped_Log_Corner",
+            "_Stripped_Trunk",
             // ── Bark / outer shell ───────────────────────────────────────
             "_Bark",
             "_Stripped_Bark",
@@ -122,6 +167,17 @@ public final class VanillaCompat {
             "_Beam",
             "_Beam_Horizontal",
             "_Beam_Corner",
+            "_Beam_Fivepiece",
+            "_Beam_Quad_Corner_Bottom",
+            "_Beam_Triple_Corner_Bottom",
+            "_Beam_Triple_Corner_Top",
+            "_Beam_Corner_Vertical",
+            "_Beam_Single_Top",
+            "_Beam_Single_Bottom",
+            "_Beam_Single_Side",
+            "_Beam_Single_Horizontal",
+            "_Beam_Cross_Horizontal",
+            "_Beam_ExtendedDoublecross",
             "_Post",
             "_Panel",
             "_Frame",
@@ -151,13 +207,36 @@ public final class VanillaCompat {
             //  here catch any that use a different naming scheme)
             "_Planks_Stairs",
             "_Planks_Half",
+            "_Stairs",
+            "_Half",
             "_Decorative",
             "_Ornate",
+            "_Brick_Decorative",
+            "_Brick_Ornate",
             "_Planks_Slab",
+            "_Slab",
             "_Log_Stairs",
             "_Log_Half",
             "_Log_Slab",
+            "_Trunk_Stairs",
+            "_Trunk_Half",
+            "_Trunk_Slab",
             "_Wood",
+            "_Wall",
+            // ── Shared masonry-style block forms seen on some wood sets ──
+            "_Brick",
+            "_Bricks",
+            "_Tile",
+            "_Tiles",
+            "_Slab",
+            "_Slabs",
+            "_Polished",
+            "_Chiseled",
+            "_Smooth",
+            "_Cut",
+            "_Pillar",
+            "_Pillar_Base",
+            "_Pillar_Middle",
             // ── Roof / shingle forms ──────────────────────────────────────
             // Listed explicitly here so they are discovered as primary keys
             // even when the bare base block ("Wood_<Type>") does not exist.
@@ -212,14 +291,10 @@ public final class VanillaCompat {
 
     private static int injectRockFamilies() {
         int count = 0;
+        String[] structureSuffixes = {"_Beam", "_Wall", "_Fence"};
         for (String rockType : ROCK_TYPES) {
-            // ── Discover all existing vanilla (natural) forms ─────────────
-            List<String> naturalKeys = new ArrayList<>();
-            for (String suffix : ROCK_NATURAL_SUFFIXES) {
-                String candidate = "Rock_" + rockType + suffix;
-                if (exists(candidate)) naturalKeys.add(candidate);
-            }
-            
+            List<String> naturalKeys = discoverNaturalRockKeys(rockType);
+
             // Also check for block keys without "Rock_" prefix (e.g., "Basalt_Brick")
             // This handles alternative naming conventions in the game
             List<String> altKeys = new ArrayList<>();
@@ -230,6 +305,7 @@ public final class VanillaCompat {
                     if (exists(candidate)) altKeys.add(candidate);
                 }
             }
+            
 
             // ── Merge masonry-mod variants if available ───────────────────
             // Only call MasonryCompat methods if MasonryCompat is available
@@ -237,13 +313,20 @@ public final class VanillaCompat {
             List<String> masonryStairs = MasonryCompat.isAvailable() ? MasonryCompat.getStairVariants(rockType) : Collections.emptyList();
             List<String> masonryHalfs  = MasonryCompat.isAvailable() ? MasonryCompat.getHalfVariants(rockType) : Collections.emptyList();
 
+                LinkedHashSet<String> structureBlocks = new LinkedHashSet<>();
+                addAll(structureBlocks, deriveExistingVariants(
+                    naturalKeys.toArray(new String[0]), structureSuffixes));
+                addAll(structureBlocks, deriveExistingVariants(
+                    altKeys.toArray(new String[0]), structureSuffixes));
+
             // Full substitution list = natural forms + alternative forms + masonry blocks
             LinkedHashSet<String> subsSet = new LinkedHashSet<>(naturalKeys);
             subsSet.addAll(altKeys);
+                subsSet.addAll(structureBlocks);
             subsSet.addAll(masonryBlocks);
             String[] subs = subsSet.toArray(new String[0]);
 
-            if (naturalKeys.isEmpty() && altKeys.isEmpty() && masonryBlocks.isEmpty()) continue;
+            if (naturalKeys.isEmpty() && altKeys.isEmpty() && structureBlocks.isEmpty() && masonryBlocks.isEmpty()) continue;
 
             // Stairs: derived from natural forms + alternative forms + masonry stairs
             LinkedHashSet<String> stairsSet = new LinkedHashSet<>();
@@ -278,11 +361,67 @@ public final class VanillaCompat {
             String[] allSubs = allSet.toArray(new String[0]);
 
             // Inject onto the full set of targets
-            String source = "Rock_" + rockType;
+            String source = resolveRockSource(rockType, naturalKeys, altKeys, masonryBlocks);
             count += injectFamily(new ArrayList<>(allSet), allSubs, stairs, halfs, roofing, source);
         }
+
         return count;
     }
+
+    private static List<String> discoverNaturalRockKeys(String rockType) {
+        LinkedHashSet<String> naturalKeys = new LinkedHashSet<>();
+        addRockVariants(naturalKeys, "Rock_" + rockType, true);
+        if (isMetalType(rockType)) {
+            addRockVariants(naturalKeys, "Metal_" + rockType, true);
+            // Probe pipe variants for metal types (e.g. Metal_Iron_Pipe_Corner)
+            String metalBase = "Metal_" + rockType;
+            for (String pipeSuffix : METAL_PIPE_SUFFIXES) {
+                String candidate = metalBase + pipeSuffix;
+                if (exists(candidate)) naturalKeys.add(candidate);
+            }
+        }
+        return new ArrayList<>(naturalKeys);
+    }
+
+    private static void addRockVariants(Set<String> found, String baseKey, boolean includeBareBase) {
+        for (String suffix : ROCK_NATURAL_SUFFIXES) {
+            if (!includeBareBase && suffix.isEmpty()) {
+                continue;
+            }
+            String candidate = baseKey + suffix;
+            if (exists(candidate)) {
+                found.add(candidate);
+            }
+        }
+    }
+
+    private static String resolveRockSource(String rockType, List<String> naturalKeys, List<String> altKeys,
+            List<String> masonryBlocks) {
+        String rockSource = "Rock_" + rockType;
+        if (exists(rockSource)) {
+            return rockSource;
+        }
+
+        if (isMetalType(rockType)) {
+            String metalSource = "Metal_" + rockType;
+            if (exists(metalSource)) {
+                return metalSource;
+            }
+        }
+
+        if (!naturalKeys.isEmpty()) {
+            return naturalKeys.get(0);
+        }
+        if (!altKeys.isEmpty()) {
+            return altKeys.get(0);
+        }
+        if (!masonryBlocks.isEmpty()) {
+            return masonryBlocks.get(0);
+        }
+
+        return rockSource;
+    }
+
 
     // ─────────────────────────────────────────────────────────────────────
     // Soil injection
@@ -414,11 +553,21 @@ public final class VanillaCompat {
 
                 if (existing instanceof Chisel.Data existingData) {
                     // Block already registered by a prior compat pass.
-                    // Patch roofing in-place if it is currently missing.
-                    boolean roofingMissing = existingData.roofing == null
-                            || existingData.roofing.length == 0;
-                    if (roofingMissing && roofing != null && roofing.length > 0) {
-                        existingData.roofing = roofing;
+                    // Merge in any vanilla-discovered arrays that were missing.
+                    String[] mergedSubs = mergeUnique(existingData.substitutions, substitutions);
+                    String[] mergedStairs = mergeUnique(existingData.stairs, stairs);
+                    String[] mergedHalfs = mergeUnique(existingData.halfSlabs, halfSlabs);
+                    String[] mergedRoofing = mergeUnique(existingData.roofing, roofing);
+
+                    boolean changed = !java.util.Arrays.equals(existingData.substitutions, mergedSubs)
+                            || !java.util.Arrays.equals(existingData.stairs, mergedStairs)
+                            || !java.util.Arrays.equals(existingData.halfSlabs, mergedHalfs)
+                            || !java.util.Arrays.equals(existingData.roofing, mergedRoofing);
+                    if (changed) {
+                        existingData.substitutions = mergedSubs;
+                        existingData.stairs = mergedStairs;
+                        existingData.halfSlabs = mergedHalfs;
+                        existingData.roofing = mergedRoofing;
                         count++;
                     }
                     continue;
@@ -456,6 +605,15 @@ public final class VanillaCompat {
         return result.isEmpty() ? null : result.toArray(new String[0]);
     }
 
+    private static String[] deriveExistingVariants(String[] bases, String[] suffixes) {
+        if (bases == null || suffixes == null) return null;
+        LinkedHashSet<String> result = new LinkedHashSet<>();
+        for (String suffix : suffixes) {
+            addAll(result, deriveExistingVariants(bases, suffix));
+        }
+        return result.isEmpty() ? null : result.toArray(new String[0]);
+    }
+
     /**
      * Derives roofing variants by checking all roof sub-variants
      * ({@code _Roof}, {@code _Roof_Flat}, etc.) for each base key.
@@ -489,6 +647,13 @@ public final class VanillaCompat {
             }
         }
         return result.toArray(new String[0]);
+    }
+
+    private static String[] mergeUnique(String[] first, String[] second) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        addAll(merged, first);
+        addAll(merged, second);
+        return merged.toArray(new String[0]);
     }
 
     /** Returns {@code true} if a {@link BlockType} with this key exists in the registry. */

@@ -3,6 +3,7 @@
 package com.Ev0sMods.Ev0sChisel.Interactions;
 
 import com.Ev0sMods.Ev0sChisel.Chisel;
+import com.Ev0sMods.Ev0sChisel.ComboState;
 import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
@@ -100,7 +101,7 @@ public class ChiselInteraction extends SimpleBlockInteraction {
                 if (!isChiselLike && blockType != null) {
                     StateData bs = null;
                     try { bs = blockType.getState(); } catch (Throwable ignored) {}
-                    if (bs instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data) {
+                    if (extractChiselData(bs) != null) {
                         // For compat-injected statues require crouch+right-click to rotate
                         if (isRightClick) isChiselLike = true;
                     } else if (blockKey != null) {
@@ -190,7 +191,7 @@ public class ChiselInteraction extends SimpleBlockInteraction {
                 String tbId = targetBlockType.getId() != null ? targetBlockType.getId().toString() : "<null>";
                 StateData tstate = null;
                 try { tstate = targetBlockType.getState(); } catch (Throwable t) { /* ignore */ }
-                boolean inst = (tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data);
+                boolean inst = (extractChiselData(tstate) != null);
                 if (!hasChiselLikeState && inst) hasChiselLikeState = true;
             } else {
                 // targetBlockType is null
@@ -226,9 +227,10 @@ public class ChiselInteraction extends SimpleBlockInteraction {
                 // re-check state
                 try {
                     StateData tstate2 = targetBlockType != null ? targetBlockType.getState() : null;
-                    if (tstate2 instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data injectedData) {
+                    Chisel.Data injectedData2 = extractChiselData(tstate2);
+                    if (injectedData2 != null) {
                         ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
-                                safe(injectedData.substitutions), safe(injectedData.stairs), safe(injectedData.halfSlabs), safe(injectedData.roofing));
+                                safe(injectedData2.substitutions), safe(injectedData2.stairs), safe(injectedData2.halfSlabs), safe(injectedData2.roofing));
                         return;
                     }
                 } catch (Throwable ignored) {}
@@ -246,7 +248,8 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         // statue BlockTypes), open the Chisel UI using that injected data.
         try {
             StateData tstate = targetBlockType != null ? targetBlockType.getState() : null;
-            if (tstate instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data injectedData) {
+            Chisel.Data injectedData = extractChiselData(tstate);
+            if (injectedData != null) {
                 ChiselUIPage.openChisel(playerRef, store, world, blockPos, player,
                         safe(injectedData.substitutions), safe(injectedData.stairs), safe(injectedData.halfSlabs), safe(injectedData.roofing));
                 return;
@@ -256,7 +259,8 @@ public class ChiselInteraction extends SimpleBlockInteraction {
         // If there is per-block instance state it would be present as a BlockState in older APIs.
         // With components, prefer BlockType-injected `Chisel.Data` for metadata.
         StateData maybeState = targetBlockType != null ? targetBlockType.getState() : null;
-        if (maybeState instanceof com.Ev0sMods.Ev0sChisel.Chisel.Data chiselData) {
+        Chisel.Data chiselData = extractChiselData(maybeState);
+        if (chiselData != null) {
             String[] subs     = chiselData.substitutions;
             String[] stairs   = chiselData.stairs;
             String[] halfs    = chiselData.halfSlabs;
@@ -360,6 +364,13 @@ public class ChiselInteraction extends SimpleBlockInteraction {
      * matching the given rock type are kept.  Non-{@code Rock_} entries
      * (mod blocks, masonry, Macaw, etc.) are always retained.
      */
+    /** Extracts {@link Chisel.Data} from either a plain or combo state, or returns {@code null}. */
+    private static Chisel.Data extractChiselData(StateData sd) {
+        if (sd instanceof Chisel.Data d) return d;
+        if (sd instanceof ComboState cs) return cs.chisel;
+        return null;
+    }
+
     private static String[] filterByRockType(String[] arr, String rockType) {
         if (arr == null || rockType == null) return arr;
         String matchPrefix = "rock_" + rockType.toLowerCase(java.util.Locale.ROOT);

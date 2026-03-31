@@ -5,28 +5,44 @@
 
 package com.Ev0sMods.Ev0sChisel;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.logging.Level;
+
+import javax.annotation.Nonnull;
+
+import com.Ev0sMods.Ev0sChisel.Interactions.CarpenterHammerInteraction;
 import com.Ev0sMods.Ev0sChisel.Interactions.ChiselInteraction;
-import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
-import com.Ev0sMods.Ev0sChisel.compat.CompatInitializer;
-import com.Ev0sMods.Ev0sChisel.compat.CompatMerger;
-import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
-import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
-import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
-import com.Ev0sMods.Ev0sChisel.compat.StatuesCompat;
-import com.Ev0sMods.Ev0sChisel.compat.VanillaCompat;
-import com.Ev0sMods.Ev0sChisel.compat.NoCubeNeonCompat;
-import com.Ev0sMods.Ev0sChisel.compat.VanillaClothCompat;
-import com.Ev0sMods.Ev0sChisel.Paintbrush;
 import com.Ev0sMods.Ev0sChisel.Interactions.PaintbrushInteraction;
+import com.Ev0sMods.Ev0sChisel.compat.BreezeBlocksCompat;
+import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.ChippedCompat;
+import com.Ev0sMods.Ev0sChisel.compat.CompatMerger;
+import com.Ev0sMods.Ev0sChisel.compat.FemboyDelightCompat;
+import com.Ev0sMods.Ev0sChisel.compat.FurnitureWindowCompat;
+import com.Ev0sMods.Ev0sChisel.compat.GlassCompat;
+import com.Ev0sMods.Ev0sChisel.compat.GuiFurnitureCompat;
+import com.Ev0sMods.Ev0sChisel.compat.LabelsCompat;
+import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
+import com.Ev0sMods.Ev0sChisel.compat.MacawFurnitureCompat;
+import com.Ev0sMods.Ev0sChisel.compat.MacawWindowDoorCompat;
+import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.NoCubeNeonCompat;
+import com.Ev0sMods.Ev0sChisel.compat.OctaPanelCompat;
+import com.Ev0sMods.Ev0sChisel.compat.PixelHeroesCompat;
+import com.Ev0sMods.Ev0sChisel.compat.SerenalCompat;
+import com.Ev0sMods.Ev0sChisel.compat.StatuesCompat;
+import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
+import com.Ev0sMods.Ev0sChisel.compat.VanillaClothCompat;
+import com.Ev0sMods.Ev0sChisel.compat.VanillaCompat;
+import com.Ev0sMods.Ev0sChisel.compat.VanillaFurnitureCompat;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
 import com.hypixel.hytale.server.core.modules.interaction.interaction.config.Interaction;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
-import java.lang.reflect.Field;
-import java.util.*;
-import java.util.logging.Level;
-import javax.annotation.Nonnull;
 
 public class Ev0sChiselPlugin extends JavaPlugin {
     private static Ev0sChiselPlugin instance;
@@ -34,7 +50,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
     public Ev0sChiselPlugin(@Nonnull JavaPluginInit init) {
         super(init);
         instance = this;
-        this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin loaded!");
+        this.getLogger().at(Level.INFO).log("[ChiselPlugin] Plugin loaded!");
     }
 
     public static Ev0sChiselPlugin getInstance() {
@@ -42,7 +58,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
     }
 
     protected void setup() {
-        this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin setup!");
+        this.getLogger().at(Level.INFO).log("[ChiselPlugin] Plugin setup!");
         this.registerEvents();
         this.registerCommands();
         MasonryCompat.init();
@@ -52,7 +68,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
     }
 
     protected void start() {
-        this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin enabled!");
+        this.getLogger().at(Level.INFO).log("[ChiselPlugin] Plugin enabled!");
         // Serial compat initialization for faster, safer startup
         MasonryCompat.init();
         CarpentryCompat.init();
@@ -60,17 +76,34 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         StoneworksCompat.init();
         MacawCompat.init();
         CompatMerger.mergeAllCompatData();
-        
+        VanillaCompat.injectChiselStates();
+        ChippedCompat.init();
+        GlassCompat.injectChiselStates();
+        BreezeBlocksCompat.init();
+        GuiFurnitureCompat.init();
+        FurnitureWindowCompat.init();
+        MacawWindowDoorCompat.init();
+        MacawFurnitureCompat.init();
+        FemboyDelightCompat.init();
+        VanillaFurnitureCompat.init();
+        SerenalCompat.init();
         
         injectDerivedBlockStates();
         NoCubeNeonCompat.init();
         // Ensure paintbrush compat layers are injected
         NoCubeNeonCompat.injectPaintbrushStates();
         VanillaClothCompat.injectPaintbrushStates();
+        GlassCompat.injectPaintbrushStates();
+        OctaPanelCompat.injectPaintbrushStates();
+        PixelHeroesCompat.injectPaintbrushStates();
+        FemboyDelightCompat.injectPaintbrushStates();
+        // Labels compat (Yer's Labels + Boske's Chest Labels)
+        LabelsCompat.init();
+        LabelsCompat.injectChiselStates();
     }
 
     public void shutdown() {
-        this.getLogger().at(Level.INFO).log("[TemplatePlugin] Plugin disabled!");
+        this.getLogger().at(Level.INFO).log("[ChiselPlugin] Plugin disabled!");
     }
 
     private void registerEvents() {
@@ -79,9 +112,11 @@ public class Ev0sChiselPlugin extends JavaPlugin {
             // Try to register per-block component types with prerelease ComponentRegistry via reflection.
             com.Ev0sMods.Ev0sChisel.compat.ComponentCompat.registerComponent(Chisel.class, "Ev0sChisel", Chisel.CODEC);
             com.Ev0sMods.Ev0sChisel.compat.ComponentCompat.registerComponent(Paintbrush.class, "Ev0sPaintbrush", Paintbrush.CODEC);
+            com.Ev0sMods.Ev0sChisel.compat.ComponentCompat.registerComponent(CarpenterHammer.class, "Ev0sCarpenterHammer", CarpenterHammer.CODEC);
         } catch (Throwable ignored) {}
         this.getCodecRegistry(Interaction.CODEC).register("ChiselInteraction", ChiselInteraction.class,  ChiselInteraction.CODEC );
         this.getCodecRegistry(Interaction.CODEC).register("PaintbrushInteraction", PaintbrushInteraction.class, PaintbrushInteraction.CODEC );
+        this.getCodecRegistry(Interaction.CODEC).register("CarpenterHammerInteraction", CarpenterHammerInteraction.class, CarpenterHammerInteraction.CODEC);
     }
 
     private void registerCommands() {
@@ -100,16 +135,19 @@ public class Ev0sChiselPlugin extends JavaPlugin {
         int scanned  = 0;
 
         // Scan the vanilla rock types that MasonryCompat knows about
-        String[] rockTypes = {
-                "Aqua", "Ash", "Basalt", "Calcite", "Chalk", "Clay_Brick",
-                "Crystal_Cyan", "Crystal_Green", "Crystal_Pink", "Crystal_Yellow",
-                "Dirt", "Lime", "Marble", "Sandstone", "Sandstone_Red", "Sandstone_White",
-                "Snow", "Stone"
-        };
+        String[] rockTypes = VanillaCompat.getRockTypes();
 
         for (String rockType : rockTypes) {
             try {
-                BlockType rockBt = com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.get("Rock_" + rockType);
+                String baseKey = "Rock_" + rockType;
+                if (VanillaCompat.isMetalType(rockType)) {
+                    String metalKey = "Metal_" + rockType;
+                    if (com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.exists(metalKey)) {
+                        baseKey = metalKey;
+                    }
+                }
+
+                BlockType rockBt = com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.get(baseKey);
                 if (rockBt == null) continue;
                 StateData state = rockBt.getState();
                 if (!(state instanceof Chisel.Data parentData)) continue;
@@ -144,7 +182,7 @@ public class Ev0sChiselPlugin extends JavaPlugin {
 
             } catch (Throwable t) {
                 this.getLogger().at(Level.WARNING).log(
-                        "[Chisel] Error injecting derived states for Rock_" + rockType + ": " + t.getMessage());
+                        "[Chisel] Error injecting derived states for " + rockType + ": " + t.getMessage());
             }
         }
 

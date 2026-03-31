@@ -1,5 +1,6 @@
 package com.Ev0sMods.Ev0sChisel.Interactions;
 
+import com.Ev0sMods.Ev0sChisel.ComboState;
 import com.Ev0sMods.Ev0sChisel.Paintbrush;
 import com.Ev0sMods.Ev0sChisel.ui.PaintbrushUIPage;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
@@ -53,7 +54,8 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
             try {
                 BlockType blockType = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
                 StateData sd = blockType != null ? blockType.getState() : null;
-                if (!(sd instanceof com.Ev0sMods.Ev0sChisel.Paintbrush.Data)) {
+                Paintbrush.Data rotPData = extractPaintbrushData(sd);
+                if (rotPData == null) {
                     // not a paintbrush-annotated block
                 } else {
                     VariantRotation vr = blockType.getVariantRotation();
@@ -97,23 +99,25 @@ public class PaintbrushInteraction extends SimpleBlockInteraction {
         try {
             BlockType bt = chunk.getBlockType(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z);
             StateData sd = bt != null ? bt.getState() : null;
-            if (!(sd instanceof com.Ev0sMods.Ev0sChisel.Paintbrush.Data pData)) {
+            Paintbrush.Data pData = extractPaintbrushData(sd);
+            if (pData == null) {
                 PaintbrushUIPage.openTable(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player);
                 return;
             }
-            String[] variants = new String[0];
-            if (pData != null) {
-                String src = pData.source;
-                if ("Cloth_Block_Wool".equals(src) || "Cloth_Roof".equals(src) || "Wood_Village_Wall".equals(src) || "NoCube_Neon".equals(src)) {
-                    variants = pData.colorVariants != null ? pData.colorVariants : new String[0];
-                }
-            }
+            String[] variants = pData.colorVariants != null ? pData.colorVariants : new String[0];
             if (variants != null && variants.length > 0) {
                 PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, variants);
             } else {
                 PaintbrushUIPage.openPaintbrush(playerRef, store, world, new Vector3i(contextTargetBlock.x, contextTargetBlock.y, contextTargetBlock.z), player, new String[0]);
             }
         } catch (Throwable ignored) {}
+    }
+
+    /** Extracts {@link Paintbrush.Data} from either a plain or combo state, or returns {@code null}. */
+    private static Paintbrush.Data extractPaintbrushData(StateData sd) {
+        if (sd instanceof Paintbrush.Data d) return d;
+        if (sd instanceof ComboState cs) return cs.paintbrush;
+        return null;
     }
 
     private static String[] pick(String[] primary, String[] fallback) {

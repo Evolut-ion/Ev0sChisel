@@ -61,11 +61,6 @@ public final class CarpentryCompat {
             "Whitewood"
     };
 
-    /** Vanilla wood block name suffixes to probe for injection. */
-    private static final String[] VANILLA_WOOD_SUFFIXES = {
-            "", "_Planks", "_Log", "_Stripped_Log", "_Stripped"
-    };
-
     private CarpentryCompat() {} // utility class
 
     // ─────────────────────────────────────────────────────────────────────
@@ -400,7 +395,10 @@ public final class CarpentryCompat {
      */
     private static List<String> discoverVanillaWoodBlocks(String woodType) {
         List<String> found = new ArrayList<>();
-        for (String suffix : VANILLA_WOOD_SUFFIXES) {
+        for (String suffix : VanillaCompat.getVanillaWoodSuffixes()) {
+            if (VanillaCompat.isWoodRoofSuffix(suffix)) {
+                continue;
+            }
             String candidate = "Wood_" + woodType + suffix;
             try {
                 if (BlockTypeCache.exists(candidate)) {

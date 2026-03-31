@@ -1,16 +1,14 @@
 package com.Ev0sMods.Ev0sChisel.compat;
 
-import com.Ev0sMods.Ev0sChisel.Ev0sChiselPlugin;
-import com.hypixel.hytale.logger.HytaleLogger;
-
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import com.Ev0sMods.Ev0sChisel.Ev0sChiselPlugin;
+import com.hypixel.hytale.logger.HytaleLogger;
 
 /**
  * Helper to speed up startup by preloading BlockType cache and running
@@ -34,16 +32,19 @@ public final class CompatInitializer {
 
         // Rock types and common suffixes
         String[] rockTypes = VanillaCompat.getRockTypes();
-        String[] rockSuffixes = {"", "_Cobble", "_Polished", "_Brick", "_Bricks", "_Tile", "_Tiles", "_Slab", "_Slabs", "_Cracked", "_Mossy", "_Chiseled", "_Smooth", "_Cut"};
+        String[] rockSuffixes = VanillaCompat.getRockNaturalSuffixes();
         for (String rt : rockTypes) {
             for (String s : rockSuffixes) candidates.add("Rock_" + rt + s);
+            if (VanillaCompat.isMetalType(rt)) {
+                for (String s : rockSuffixes) candidates.add("Metal_" + rt + s);
+            }
             // also bare type variants
             for (String s : rockSuffixes) candidates.add(rt + s);
         }
 
         // Wood types and common suffixes
         String[] woodTypes = VanillaCompat.getWoodTypes();
-        String[] woodSuffixes = {"", "_Planks", "_Log", "_Stripped_Log", "_Bark", "_Post", "_Panel", "_Roof", "_Roof_Flat", "_Shingle"};
+        String[] woodSuffixes = VanillaCompat.getVanillaWoodSuffixes();
         for (String wt : woodTypes) {
             for (String s : woodSuffixes) candidates.add("Wood_" + wt + s);
         }
@@ -57,11 +58,16 @@ public final class CompatInitializer {
         ));
 
         // Cloth / wool common keys
-        String[] baseColors = {"Red","Blue","Green","Yellow","White","Black","Orange","Purple","Pink","Cyan","Magenta","Lime","Brown","Gray","Beige"};
-        String[] clothRoofStyles = {"", "_Flat", "_Flap", "_Vertical"};
-        for (String c : baseColors) {
-            candidates.add("Cloth_Block_Wool_" + c);
-            for (String s : clothRoofStyles) candidates.add("Cloth_Roof_" + c + s);
+        for (String c : VanillaClothCompat.getAllColors()) {
+            for (String suffix : VanillaClothCompat.getWoolSuffixes()) {
+                candidates.add("Cloth_Block_Wool_" + c + suffix);
+            }
+            for (String s : VanillaClothCompat.getClassicRoofStyles()) {
+                candidates.add("Cloth_Roof_" + c + s);
+            }
+            for (String s : VanillaClothCompat.getModernRoofSuffixes()) {
+                candidates.add("Cloth_Modern_" + c + s);
+            }
             candidates.add("Wood_Village_Wall_" + c + "_Full");
         }
 

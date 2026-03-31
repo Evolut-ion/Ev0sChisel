@@ -1,12 +1,18 @@
 package com.Ev0sMods.Ev0sChisel.compat;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
 import com.Ev0sMods.Ev0sChisel.Chisel;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
-
-import java.lang.reflect.Field;
-import java.util.*;
 
 /**
  * Unified compatibility merger that collects contributions from all compat systems
@@ -528,17 +534,8 @@ public final class CompatMerger {
     private static List<String> discoverAllRockVariants(String rockType) {
         List<String> found = new ArrayList<>();
         Set<String> foundSet = new HashSet<>();
-        
-        String[] suffixes = {
-            "", "_Cobble", "_Polished",
-            "_Brick", "_Bricks",
-            "_Tile", "_Tiles",
-            "_Slab", "_Slabs",
-            "_Cracked", "_Cracked_Bricks",
-            "_Mossy", "_Mossy_Bricks", "_Mossy_Cobble",
-            "_Chiseled", "_Smooth", "_Cut", "_Ornate", "_Decorative",
-            "_Pillar"
-        };
+
+        String[] suffixes = VanillaCompat.getRockNaturalSuffixes();
         
         // 1. Rock_{Type}
         String rockPrefixKey = "Rock_" + rockType;
@@ -546,6 +543,17 @@ public final class CompatMerger {
             String key = rockPrefixKey + suffix;
             if (exists(key) && foundSet.add(key)) {
                 found.add(key);
+            }
+        }
+
+        // 1b. Metal_{Type} for metal families
+        if (VanillaCompat.isMetalType(rockType)) {
+            String metalPrefixKey = "Metal_" + rockType;
+            for (String suffix : suffixes) {
+                String key = metalPrefixKey + suffix;
+                if (exists(key) && foundSet.add(key)) {
+                    found.add(key);
+                }
             }
         }
         
@@ -561,21 +569,14 @@ public final class CompatMerger {
         
         // 3. Special handling for Basalt
         if (rockType.equals("Basalt")) {
-            String[] basaltSuffixes = {
-                "", "_Cobble", "_Polished", "_Brick", "_Bricks",
-                "_Tile", "_Tiles", "_Slab", "_Slabs",
-                "_Cracked", "_Cracked_Bricks",
-                "_Mossy", "_Mossy_Bricks", "_Mossy_Cobble",
-                "_Chiseled", "_Smooth", "_Cut", "_Ornate", "_Decorative", "_Pillar"
-            };
             if (exists("Basalt_Brick")) {
-                for (String suffix : basaltSuffixes) {
+                for (String suffix : suffixes) {
                     String key = "Basalt_Brick" + suffix;
                     if (exists(key) && foundSet.add(key)) found.add(key);
                 }
             }
             if (exists("Rock_Basalt_Brick")) {
-                for (String suffix : basaltSuffixes) {
+                for (String suffix : suffixes) {
                     String key = "Rock_Basalt_Brick" + suffix;
                     if (exists(key) && foundSet.add(key)) found.add(key);
                 }
@@ -590,7 +591,7 @@ public final class CompatMerger {
         
         // 4. Sandstone
         if (rockType.equals("Sandstone") && exists("Rock_Sandstone")) {
-            String[] sandstoneSuffixes = {"", "_Cut", "_Chiseled", "_Smooth", "_Cobble", "_Polished", "_Brick", "_Bricks", "_Tile", "_Tiles", "_Slab", "_Slabs"};
+            String[] sandstoneSuffixes = {"", "_Cut", "_Chiseled", "_Smooth", "_Cobble", "_Polished", "_Brick", "_Bricks", "_Tile", "_Tiles", "_Slab", "_Slabs", "_Pillar", "_Pillar_Base", "_Pillar_Middle"};
             for (String suffix : sandstoneSuffixes) {
                 String key = "Rock_Sandstone" + suffix;
                 if (exists(key) && foundSet.add(key)) found.add(key);
@@ -633,21 +634,18 @@ public final class CompatMerger {
     }
 
     private static List<String> discoverVanillaWoodBlocks(String woodType) {
-        List<String> found = new ArrayList<>();
+        LinkedHashSet<String> found = new LinkedHashSet<>();
         String baseKey = "Wood_" + woodType;
-        if (exists(baseKey)) {
-            found.add(baseKey);
-        }
-        String[] variants = {
-            baseKey + "_Planks", baseKey + "_Log", baseKey + "_Stripped_Log",
-            baseKey + "_Bark", baseKey + "_Stripped_Bark"
-        };
-        for (String variant : variants) {
+        for (String suffix : VanillaCompat.getVanillaWoodSuffixes()) {
+            if (VanillaCompat.isWoodRoofSuffix(suffix)) {
+                continue;
+            }
+            String variant = baseKey + suffix;
             if (exists(variant)) {
                 found.add(variant);
             }
         }
-        return found;
+        return new ArrayList<>(found);
     }
 
     private static boolean exists(String key) {

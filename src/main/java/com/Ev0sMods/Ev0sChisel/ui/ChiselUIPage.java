@@ -3,9 +3,11 @@ package com.Ev0sMods.Ev0sChisel.ui;
 import au.ellie.hyui.builders.PageBuilder;
 import com.Ev0sMods.Ev0sChisel.Chisel;
 import com.Ev0sMods.Ev0sChisel.compat.CarpentryCompat;
+import com.Ev0sMods.Ev0sChisel.compat.LabelsCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MacawCompat;
 import com.Ev0sMods.Ev0sChisel.compat.MasonryCompat;
 import com.Ev0sMods.Ev0sChisel.compat.StoneworksCompat;
+import com.Ev0sMods.Ev0sChisel.compat.VanillaCompat;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -44,7 +46,7 @@ public final class ChiselUIPage {
     public enum Mode { CHISEL, TABLE }
 
     /** Output tab types inside the UI. */
-    public enum Tab { BLOCKS, STAIRS, HALF_SLABS, ROOFING, STATUE }
+    public enum Tab { BLOCKS, STAIRS, HALF_SLABS, ROOFING, STATUE, LABELS }
 
     /* Layout / paging constants */
     private static final int GRID_COLUMNS   = 4;
@@ -93,7 +95,7 @@ public final class ChiselUIPage {
                             short inputSlot,
                             int inputSection,
                             Mode mode,
-                            Tab activeTab,
+                            Tab tab,
                             int outputPage,
                             int invPage) {
 
@@ -126,7 +128,7 @@ public final class ChiselUIPage {
         // If we detected a two-block statue pillar, prefer showing the
         // statue's mapped base chisel material in the BLOCKS tab so the
         // user can convert a statue back into its material blocks.
-        if (hasStatues && (activeTab == Tab.BLOCKS)) {
+        if (hasStatues && (tab == Tab.BLOCKS)) {
             boolean hasAny = (outSubs != null && outSubs.length > 0);
             if (!hasAny) {
                 java.util.LinkedHashSet<String> mapped = new java.util.LinkedHashSet<>();
@@ -142,10 +144,18 @@ public final class ChiselUIPage {
             }
         }
 
-        boolean hasBlocks = len(outSubs) > 0;
+        // Detect whether the current substitutions are label variants (not regular material blocks).
+        // When true, we surface a dedicated "Labels" tab instead of the generic "Blocks" tab.
+        boolean hasLabels = LabelsCompat.isAvailable()
+                && len(outSubs) > 0
+                && LabelsCompat.isLabelKey(first(outSubs));
+        boolean hasBlocks = !hasLabels && len(outSubs) > 0;
         boolean hasStairs = len(outStairs) > 0;
         boolean hasHalfs  = len(outHalfs) > 0;
         boolean hasRoofs  = len(outRoofs) > 0;
+
+        // If opening with BLOCKS active but this is actually a labels block, redirect to LABELS tab
+        final Tab activeTab = (hasLabels && tab == Tab.BLOCKS) ? Tab.LABELS : tab;
 
         String[] allOutputs = switch (activeTab) {
             case BLOCKS     -> safe(outSubs);
@@ -153,6 +163,7 @@ public final class ChiselUIPage {
             case HALF_SLABS -> safe(outHalfs);
             case ROOFING    -> safe(outRoofs);
             case STATUE     -> safe(statueVariants);
+            case LABELS     -> safe(outSubs);
         };
 
         // ── Paginate output grid ────────────────────────────────────
@@ -188,13 +199,15 @@ public final class ChiselUIPage {
             html = buildChiselHtml(pgOut, outStart, activeTab,
                 hasBlocks, iconBlocks, hasStairs, iconStairs,
                 hasHalfs, iconHalfs, hasRoofs, iconRoofs,
-                hasStatues, first(statueVariants), hasChiselData, curOutPg, totalOutPg);
+                hasStatues, first(statueVariants), hasLabels, iconBlocks,
+                hasChiselData, curOutPg, totalOutPg);
         } else {
             html = buildTableHtml(pgInv, invStart, pgOut, outStart,
                 inputKey, inputCount, activeTab,
                 hasBlocks, iconBlocks, hasStairs, iconStairs,
                 hasHalfs, iconHalfs, hasRoofs, iconRoofs,
-                hasStatues, first(statueVariants), hasChiselData, curOutPg, totalOutPg,
+                hasStatues, first(statueVariants), hasLabels, iconBlocks,
+                hasChiselData, curOutPg, totalOutPg,
                 curInvPg, totalInvPg);
         }
 
@@ -263,6 +276,12 @@ public final class ChiselUIPage {
                         mode, Tab.STATUE, 0, fCurInvPg));
             }
         }
+        if (hasLabels && activeTab != Tab.LABELS)
+            builder.addEventListener("tab_labels", CustomUIEventBindingType.Activating,
+                    (i, c) -> open(playerRef, store, world, blockPos, player,
+                            chiselSubs, chiselStairs, chiselHalfs, chiselRoofs,
+                            inputKey, inputCount, inputSlot, inputSection,
+                            mode, Tab.LABELS, 0, fCurInvPg));
 
         // ── Output pagination ───────────────────────────────────────
         if (curOutPg > 0)
@@ -439,8 +458,22 @@ public final class ChiselUIPage {
                                   String[] stairs,
                                   String[] halfs,
                                   String[] roofs) {
+        ChiselVariants resolved = null;
+        try {
+            WorldChunk chunk = world.getChunkIfInMemory(ChunkUtil.indexChunkFromBlock(blockPos.x, blockPos.z));
+            if (chunk != null) {
+                BlockType blockType = chunk.getBlockType(blockPos.x, blockPos.y, blockPos.z);
+                String blockKey = blockType != null && blockType.getId() != null ? String.valueOf(blockType.getId()) : null;
+                resolved = resolveChiselVariants(blockKey);
+            }
+        } catch (Throwable ignored) {}
+
+        ChiselVariants normalized = resolved != null
+                ? resolved
+                : normalizeVariantBuckets(subs, stairs, halfs, roofs);
+
         open(playerRef, store, world, blockPos, player,
-                subs, stairs, halfs, roofs,
+                normalized.subs, normalized.stairs, normalized.halfs, normalized.roofs,
                 null, 0, (short) -1, -1,
                 Mode.CHISEL, Tab.BLOCKS, 0, 0);
     }
@@ -470,6 +503,7 @@ public final class ChiselUIPage {
                                           boolean hasHalfs,  String iconHalfs,
                                           boolean hasRoofs,  String iconRoofs,
                                           boolean hasStatues, String iconStatues,
+                                          boolean hasLabels, String iconLabels,
                                           boolean hasChiselData,
                                           int curOutPg, int totalOutPg) {
         StringBuilder sb = new StringBuilder();
@@ -481,7 +515,8 @@ public final class ChiselUIPage {
         sb.append("<p class=\"info-label\">Select a variant to chisel this block into.</p>\n");
 
         sb.append(buildTabRow(hasBlocks, iconBlocks, hasStairs, iconStairs,
-            hasHalfs, iconHalfs, hasRoofs, iconRoofs, hasStatues, iconStatues, activeTab));
+            hasHalfs, iconHalfs, hasRoofs, iconRoofs, hasStatues, iconStatues,
+            hasLabels, iconLabels, activeTab));
         sb.append("<div class=\"separator\"></div>\n");
 
         sb.append("<div class=\"btn-grid\">\n");
@@ -513,6 +548,7 @@ public final class ChiselUIPage {
                                          boolean hasHalfs,  String iconHalfs,
                                          boolean hasRoofs,  String iconRoofs,
                                          boolean hasStatues, String iconStatues,
+                                         boolean hasLabels, String iconLabels,
                                          boolean hasChiselData,
                                          int curOutPg, int totalOutPg,
                                          int curInvPg, int totalInvPg) {
@@ -547,9 +583,10 @@ public final class ChiselUIPage {
         sb.append("    </div>\n");
         sb.append("    <div class=\"separator\"></div>\n");
 
-        if (inputKey != null && (hasBlocks || hasStairs || hasHalfs || hasRoofs || hasStatues))
+        if (inputKey != null && (hasBlocks || hasStairs || hasHalfs || hasRoofs || hasStatues || hasLabels))
             sb.append(buildTabRow(hasBlocks, iconBlocks, hasStairs, iconStairs,
-                hasHalfs, iconHalfs, hasRoofs, iconRoofs, hasStatues, iconStatues, activeTab));
+                hasHalfs, iconHalfs, hasRoofs, iconRoofs, hasStatues, iconStatues,
+                hasLabels, iconLabels, activeTab));
 
         sb.append("    <div class=\"btn-grid\">\n");
         if (pageOut.length > 0) {
@@ -625,6 +662,7 @@ public final class ChiselUIPage {
                                       boolean hasHalfs,  String iconHalfs,
                                       boolean hasRoofs,  String iconRoofs,
                                       boolean hasStatues, String iconStatues,
+                                      boolean hasLabels, String iconLabels,
                                       Tab activeTab) {
         StringBuilder sb = new StringBuilder();
         sb.append("<div class=\"tab-row\">\n");
@@ -633,6 +671,7 @@ public final class ChiselUIPage {
         if (hasHalfs)  appendIconTab(sb, "tab_halfslabs", iconHalfs,  "Half Slabs", activeTab == Tab.HALF_SLABS);
         if (hasRoofs)  appendIconTab(sb, "tab_roofing",   iconRoofs,  "Roofing",    activeTab == Tab.ROOFING);
         if (hasStatues) appendIconTab(sb, "tab_statues", iconStatues, "Statues", activeTab == Tab.STATUE);
+        if (hasLabels) appendIconTab(sb, "tab_labels", iconLabels, "Labels", activeTab == Tab.LABELS);
         sb.append("</div>\n");
         return sb.toString();
     }
@@ -787,6 +826,7 @@ public final class ChiselUIPage {
             detectedRockType = MacawCompat.detectRockType(blockKey, subs);
 
         if (detectedRockType != null) {
+            subs = merge(subs, discoverVanillaRockBlocksForUi(canonicalType(detectedRockType, VanillaCompat.getRockTypes())));
             subs   = filterByRockType(subs,   detectedRockType);
             stairs = filterByRockType(stairs,  detectedRockType);
             halfs  = filterByRockType(halfs,   detectedRockType);
@@ -815,29 +855,25 @@ public final class ChiselUIPage {
         if (CarpentryCompat.isAvailable() && subs != null) {
             String woodType = CarpentryCompat.detectWoodType(blockKey, subs);
             if (woodType != null) {
+                subs   = merge(subs,   discoverVanillaWoodBlocksForUi(canonicalType(woodType, VanillaCompat.getWoodTypes())));
                 subs   = merge(subs,   CarpentryCompat.getVariants(woodType));
                 stairs = merge(stairs, CarpentryCompat.getStairVariants(woodType));
                 halfs  = merge(halfs,  CarpentryCompat.getHalfVariants(woodType));
             }
         }
 
-        if (empty(stairs) && !empty(subs))
-            stairs = MasonryCompat.deriveExistingVariants(subs, "_Stairs");
-        if (empty(halfs) && !empty(subs))
-            halfs  = MasonryCompat.deriveExistingVariants(subs, "_Half");
-        if (empty(roofs) && !empty(subs)) {
-            roofs = MasonryCompat.deriveExistingRoofing(subs);
-            // For wood blocks the standard derivation misses shingle variants;
-            // merge in the wood-aware derivation as well.
-            if (empty(roofs))
-                roofs = com.Ev0sMods.Ev0sChisel.compat.VanillaCompat.deriveExistingWoodRoofing(subs);
+        if (!empty(subs)) {
+            stairs = merge(stairs, Arrays.asList(safe(MasonryCompat.deriveExistingVariants(subs, "_Stairs"))));
+            halfs  = merge(halfs, Arrays.asList(safe(MasonryCompat.deriveExistingVariants(subs, "_Half"))));
+            roofs  = merge(roofs, Arrays.asList(safe(MasonryCompat.deriveExistingRoofing(subs))));
+            roofs  = merge(roofs, Arrays.asList(VanillaCompat.deriveExistingWoodRoofing(subs)));
         }
 
-        if (empty(subs) && empty(stairs) && empty(halfs) && empty(roofs))
+        ChiselVariants result = normalizeVariantBuckets(subs, stairs, halfs, roofs);
+
+        if (empty(result.subs) && empty(result.stairs) && empty(result.halfs) && empty(result.roofs))
             return null;
 
-        ChiselVariants result = new ChiselVariants(safe(subs), safe(stairs),
-                safe(halfs), safe(roofs));
         CHISEL_VARIANTS_CACHE.put(blockKey, result);
         return result;
     }
@@ -1141,10 +1177,129 @@ public final class ChiselUIPage {
         return local.replace('_', ' ');
     }
 
+    private static String canonicalType(String type, String[] knownTypes) {
+        if (type == null || knownTypes == null) return type;
+        for (String knownType : knownTypes) {
+            if (knownType.equalsIgnoreCase(type)) {
+                return knownType;
+            }
+        }
+        return type;
+    }
+
+    private static List<String> discoverVanillaRockBlocksForUi(String rockType) {
+        if (rockType == null || rockType.isEmpty()) return Collections.emptyList();
+        LinkedHashSet<String> found = new LinkedHashSet<>();
+        for (String suffix : VanillaCompat.getRockNaturalSuffixes()) {
+            addIfExists(found, "Rock_" + rockType + suffix);
+            if (VanillaCompat.isMetalType(rockType)) {
+                addIfExists(found, "Metal_" + rockType + suffix);
+            }
+            if (!suffix.isEmpty()) {
+                addIfExists(found, rockType + suffix);
+            }
+        }
+        return new ArrayList<>(found);
+    }
+
+    private static List<String> discoverVanillaWoodBlocksForUi(String woodType) {
+        if (woodType == null || woodType.isEmpty()) return Collections.emptyList();
+        LinkedHashSet<String> found = new LinkedHashSet<>();
+        for (String suffix : VanillaCompat.getVanillaWoodSuffixes()) {
+            if (VanillaCompat.isWoodRoofSuffix(suffix)) {
+                continue;
+            }
+            addIfExists(found, "Wood_" + woodType + suffix);
+        }
+        return new ArrayList<>(found);
+    }
+
+    private static ChiselVariants normalizeVariantBuckets(String[] subs,
+                                                          String[] stairs,
+                                                          String[] halfs,
+                                                          String[] roofs) {
+        LinkedHashSet<String> stairSet = new LinkedHashSet<>();
+        LinkedHashSet<String> halfSet = new LinkedHashSet<>();
+        LinkedHashSet<String> roofSet = new LinkedHashSet<>();
+        LinkedHashSet<String> blockSet = new LinkedHashSet<>();
+
+        addAll(stairSet, stairs);
+        addAll(halfSet, halfs);
+        addAll(roofSet, roofs);
+
+        if (subs != null) {
+            for (String key : subs) {
+                if (key == null || key.isEmpty()) continue;
+                if (isRoofVariant(key)) {
+                    roofSet.add(key);
+                } else if (isHalfVariant(key)) {
+                    halfSet.add(key);
+                } else if (isStairVariant(key)) {
+                    stairSet.add(key);
+                } else {
+                    blockSet.add(key);
+                }
+            }
+        }
+
+        removeAll(blockSet, stairSet);
+        removeAll(blockSet, halfSet);
+        removeAll(blockSet, roofSet);
+
+        return new ChiselVariants(
+                blockSet.toArray(new String[0]),
+                stairSet.toArray(new String[0]),
+                halfSet.toArray(new String[0]),
+                roofSet.toArray(new String[0]));
+    }
+
     private static String[]  safe(String[] a)  { return a != null ? a : new String[0]; }
     private static int       len(String[] a)   { return a != null ? a.length : 0; }
     private static boolean   empty(String[] a) { return a == null || a.length == 0; }
     private static String    first(String[] a) { return (a != null && a.length > 0) ? a[0] : null; }
+
+    private static boolean isStairVariant(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
+        return lower.endsWith("_stairs")
+                || lower.contains("_stairs_")
+                || lower.startsWith("mcw_stairs_");
+    }
+
+    private static boolean isHalfVariant(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
+        return lower.endsWith("_half")
+                || lower.endsWith("_slab")
+                || lower.endsWith("_slabs")
+                || lower.contains("_half_");
+    }
+
+    private static boolean isRoofVariant(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
+        return lower.contains("_roof")
+                || lower.contains("_shingle");
+    }
+
+    private static void addIfExists(Set<String> dest, String key) {
+        if (key != null && !key.isEmpty()
+                && com.Ev0sMods.Ev0sChisel.compat.BlockTypeCache.exists(key)) {
+            dest.add(key);
+        }
+    }
+
+    private static void addAll(Set<String> dest, String[] arr) {
+        if (arr == null) return;
+        for (String key : arr) {
+            if (key != null && !key.isEmpty()) {
+                dest.add(key);
+            }
+        }
+    }
+
+    private static void removeAll(Set<String> dest, Set<String> toRemove) {
+        for (String key : toRemove) {
+            dest.remove(key);
+        }
+    }
 
     private static String[] filterByRockType(String[] arr, String rockType) {
         if (arr == null || rockType == null) return arr;

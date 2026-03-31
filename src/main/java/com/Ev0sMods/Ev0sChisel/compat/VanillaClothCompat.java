@@ -1,12 +1,13 @@
 package com.Ev0sMods.Ev0sChisel.compat;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import com.Ev0sMods.Ev0sChisel.Paintbrush;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.StateData;
-
-import java.lang.reflect.Field;
-import java.util.*;
 
 /**
  * Vanilla compat for the Paintbrush covering Hytale's cloth/wool blocks.
@@ -64,12 +65,79 @@ public final class VanillaClothCompat {
         ALL_COLORS = all.toArray(new String[0]);
     }
 
+    // ── Mcw Carpets ─────────────────────────────────────────────────────
+    /** Carpet forms where color comes first: Mcw_Carpets_{Color}_{suffix} */
+    private static final String[] MCW_CARPET_COLOR_SUFFIXES = {
+            "Carpet_Block",
+            "Carpet_Cloth",
+            "Carpet_Cloth_Light",
+            "Carpet_Cloth_Slab",
+            "Carpet_Cloth_Light_Slab"
+    };
+
+    /** Carpet forms where a shape prefix comes before the color: Mcw_Carpets_{prefix}_{Color}_Carpet */
+    private static final String[] MCW_CARPET_PREFIXES = {
+            "Rectangle",
+            "Small",
+            "Small_Square"
+    };
+
     // Roof style suffixes (empty string = plain Cloth_Roof_{Color})
     private static final String[] ROOF_STYLES = {
             "", "_Flat", "_Flap", "_Vertical"
     };
 
+    private static final String[] WOOL_SUFFIXES = {
+            "", "_Stairs", "_Slab", "_Half"
+    };
+
+    private static final String[] MODERN_ROOF_SUFFIXES = {
+            "_Roof",
+            "_Roof_Flat",
+            "_Roof_Shallow",
+            "_Roof_Steep",
+            "_Roof_Vertical",
+            "_Roof_Vertical_Flap"
+    };
+
     private VanillaClothCompat() {}
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Extra cloth keys registered by other compat passes (e.g. SerenalCompat)
+    // before injectPaintbrushStates() runs.  All registered keys are merged
+    // into the unified allCloth group so cross-mod painting works seamlessly.
+    // ─────────────────────────────────────────────────────────────────────
+
+    private static final List<String> EXTRA_CLOTH_KEYS = new ArrayList<>();
+
+    /**
+     * Registers additional block keys to be included in the unified
+     * {@code Cloth_All} paintbrush group.  Must be called before
+     * {@link #injectPaintbrushStates()}.
+     *
+     * @param keys block-type identifiers to include (only existing blocks
+     *             should be passed; non-existent ones are silently ignored
+     *             by {@link #injectGroup})
+     */
+    public static void registerExtraClothKeys(List<String> keys) {
+        if (keys != null) EXTRA_CLOTH_KEYS.addAll(keys);
+    }
+
+    public static String[] getAllColors() {
+        return ALL_COLORS;
+    }
+
+    public static String[] getClassicRoofStyles() {
+        return ROOF_STYLES;
+    }
+
+    public static String[] getWoolSuffixes() {
+        return WOOL_SUFFIXES;
+    }
+
+    public static String[] getModernRoofSuffixes() {
+        return MODERN_ROOF_SUFFIXES;
+    }
 
     // ─────────────────────────────────────────────────────────────────────
     // Public entry point
@@ -83,16 +151,28 @@ public final class VanillaClothCompat {
      * compat passes.
      */
     public static void injectPaintbrushStates() {
-        String[] woolVariants        = discoverWoolVariants();
-        String[] roofVariants        = discoverRoofVariants();
-        String[] villageWallVariants = discoverVillageWallVariants();
-        String[] modernRoofVariants  = discoverModernRoofVariants();
+        // ── Unified wool / cloth / carpet group ───────────────────────────
+        // All wool, cloth-roof, modern-cloth, and all Mcw carpet variants are
+        // merged into one array so pressing the paintbrush on any of them
+        // shows the full cross-family colour picker.
+        List<String> allCloth = new ArrayList<>();
+        addAll(allCloth, discoverWoolVariants());
+        addAll(allCloth, discoverRoofVariants());
+        addAll(allCloth, discoverModernRoofVariants());
+        for (String suffix : MCW_CARPET_COLOR_SUFFIXES)
+            addAll(allCloth, discoverMcwCarpetBySuffix(suffix));
+        for (String prefix : MCW_CARPET_PREFIXES)
+            addAll(allCloth, discoverMcwCarpetByPrefix(prefix));
+        // Extra keys registered by other compat passes (e.g. Serenal cloth shapes)
+        if (!EXTRA_CLOTH_KEYS.isEmpty())
+            addAll(allCloth, EXTRA_CLOTH_KEYS.toArray(new String[0]));
 
         int total = 0;
-        total += injectGroup(woolVariants,        "Cloth_Block_Wool");
-        total += injectGroup(roofVariants,        "Cloth_Roof");
-        total += injectGroup(villageWallVariants, "Wood_Village_Wall");
-        total += injectGroup(modernRoofVariants,  "Cloth_Modern");
+        if (!allCloth.isEmpty())
+            total += injectGroup(allCloth.toArray(new String[0]), "Cloth_All");
+
+        // ── Village wall stays its own group (wood, not cloth) ────────────
+        total += injectGroup(discoverVillageWallVariants(), "Wood_Village_Wall");
 
         // injected Paintbrush.Data summary (info log removed)
     }
@@ -123,8 +203,10 @@ public final class VanillaClothCompat {
     private static String[] discoverModernRoofVariants() {
         List<String> found = new ArrayList<>();
         for (String color : ALL_COLORS) {
-            String key = "Cloth_Modern_" + color + "_Roof";
-            if (exists(key)) found.add(key);
+            for (String suffix : MODERN_ROOF_SUFFIXES) {
+                String key = "Cloth_Modern_" + color + suffix;
+                if (exists(key)) found.add(key);
+            }
         }
         if (found.isEmpty()) {
             // no modern roof blocks found (info log removed)
@@ -135,8 +217,10 @@ public final class VanillaClothCompat {
     private static String[] discoverWoolVariants() {
         List<String> found = new ArrayList<>();
         for (String color : ALL_COLORS) {
-            String key = "Cloth_Block_Wool_" + color;
-            if (exists(key)) found.add(key);
+            for (String suffix : WOOL_SUFFIXES) {
+                String key = "Cloth_Block_Wool_" + color + suffix;
+                if (exists(key)) found.add(key);
+            }
         }
         if (found.isEmpty()) {
             // no wool blocks found (info log removed)
@@ -150,6 +234,24 @@ public final class VanillaClothCompat {
      * Vertical) and all colors are combined into one flat array so the
      * whole cloth-roof family is cross-selectable.
      */
+    private static String[] discoverMcwCarpetBySuffix(String suffix) {
+        List<String> found = new ArrayList<>();
+        for (String color : ALL_COLORS) {
+            String key = "Mcw_Carpets_" + color + "_" + suffix;
+            if (exists(key)) found.add(key);
+        }
+        return found.toArray(new String[0]);
+    }
+
+    private static String[] discoverMcwCarpetByPrefix(String prefix) {
+        List<String> found = new ArrayList<>();
+        for (String color : ALL_COLORS) {
+            String key = "Mcw_Carpets_" + prefix + "_" + color + "_Carpet";
+            if (exists(key)) found.add(key);
+        }
+        return found.toArray(new String[0]);
+    }
+
     private static String[] discoverRoofVariants() {
         List<String> found = new ArrayList<>();
         for (String color : ALL_COLORS) {
@@ -208,6 +310,10 @@ public final class VanillaClothCompat {
     // ─────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────
+
+    private static void addAll(List<String> list, String[] arr) {
+        if (arr != null) Collections.addAll(list, arr);
+    }
 
     private static boolean exists(String key) {
         try {
